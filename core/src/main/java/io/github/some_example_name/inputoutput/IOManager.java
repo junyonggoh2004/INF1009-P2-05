@@ -23,10 +23,10 @@ public class IOManager implements Disposable {
     // --- MAIN LOOP ---
     // The EngineCore calls this 60 times a second.
     public void update(float dt) {
-        // 1. Process Inputs (Teammate)
+        // 1. Process Inputs
         // inputHandler.update(dt);
 
-        // 2. Process Outputs (You)
+        // 2. Process Outputs
         // Currently, our OutputHandler doesn't need a constant update loop
         // because it reacts to events (like "play sound"), but we keep this
         // here in case we need it later (e.g., fading out music over time).
