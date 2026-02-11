@@ -21,7 +21,17 @@ public class Motion {
     // Enables or disables gravity effects
     private boolean gravityEnabled;
     
-    // Constructor with default values --> Common case: just moving
+   // Default constructor - stationary entity
+    public Motion() {
+        this.vx = 0f;
+        this.vy = 0f;
+        this.ax = 0f;
+        this.ay = 0f;
+        this.maxSpeed = Float.MAX_VALUE;
+        this.gravityEnabled = false;
+    }
+    
+    // Constructor with velocity only - common case
     public Motion(float vx, float vy) {
         this.vx = vx;
         this.vy = vy;
@@ -31,7 +41,7 @@ public class Motion {
         this.gravityEnabled = false;
     }
     
-    // Constructor with explicit values -- Advanced case: full control
+    // Constructor with full control - advanced case
     public Motion(float vx, float vy, float ax, float ay, float maxSpeed, boolean gravityEnabled) {
         this.vx = vx;
         this.vy = vy;

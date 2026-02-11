@@ -1,17 +1,13 @@
 package io.github.some_example_name.movement;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 import io.github.some_example_name.entity.EntityManager;
-import io.github.some_example_name.movement.Motion;
-import io.github.some_example_name.movement.Transform;
 
 /**
- * MovementManager: updates position using Motion + Transform.
- * Assumes Entity has: isActive(), hasComponent(String), getComponent(String)
- * Assumes EntityManager has: getAll()
- * Assumes Transform has: getX/getY/setX/setY
- * Assumes Motion has: getVx/getVy/getAx/getAy/getMaxSpeed/isGravityEnabled and setters for vx/vy (and optionally ax/ay)
+ * MovementManager: owns and updates Transform/Motion components.
+ * Managers talk to managers - Entity does NOT access Transform/Motion directly.
  */
 
 public class MovementManager {
@@ -19,122 +15,173 @@ public class MovementManager {
     // gravity acceleration (pixels/sec^2). Flip sign if your Y-axis is up.
     private static final float GRAVITY = 980f;
     
-    // init manager 
+    // Store Transform components by entity ID
+    private Map<Integer, Transform> transforms;
+    
+    // Store Motion components by entity ID
+    private Map<Integer, Motion> motions;
+    
+    // Initialize the manager
     public void init() {
+        transforms = new HashMap<>();
+        motions = new HashMap<>();
     }
     
-    // apply() = do the actual movement math for this frame
+    // Register an entity with movement components
+    public void register(int entityId, Transform transform, Motion motion) {
+        if (transform != null) {
+            transforms.put(entityId, transform);
+        }
+        if (motion != null) {
+            motions.put(entityId, motion);
+        }
+    }
+    
+    // Unregister an entity
+    public void unregister(int entityId) {
+        transforms.remove(entityId);
+        motions.remove(entityId);
+    }
+    
+    // Get Transform for an entity
+    public Transform getTransform(int entityId) {
+        return transforms.get(entityId);
+    }
+    
+    // Get Motion for an entity
+    public Motion getMotion(int entityId) {
+        return motions.get(entityId);
+    }
+    
+    // Check if entity has Transform
+    public boolean hasTransform(int entityId) {
+        return transforms.containsKey(entityId);
+    }
+    
+    // Check if entity has Motion
+    public boolean hasMotion(int entityId) {
+        return motions.containsKey(entityId);
+    }
+    
+    // Apply movement physics for this frame
     public void apply(float dt, EntityManager em) {
-    	
-    	// check if invalid dt or missing EntityManager
+    	// Check if invalid delta time or missing EntityManager (dt can't be negative)
     	if (dt <= 0f || em == null) return;
 
-    	// get all entities from EntityManager
-        List<Entity> entities = em.getAll();
+    	// Check if maps are initialized
+        if (transforms == null || motions == null) return;
         
-        // check for entities list
-        if (entities == null) {
-            return;
-        }
-        
-        // loop through every entity
-        for (Entity e : entities) {
-
-            // skip invalid/inactive entities
-            if (e == null || !e.isActive()) {
-            	continue;
+        // Loop through all entities that have Motion as not all entities need to move
+        for (Map.Entry<Integer, Motion> entry : motions.entrySet()) {
+        	// Extract entity ID from the map entry
+        	int entityId = entry.getKey();
+        	
+        	// Talk to EntityManager for the active entity 
+            if (!em.isActive(entityId)) {
+                continue; 
             }
-
-            // only move entities that have both components (transform + motion)
-            if (!e.hasComponent("Transform") || !e.hasComponent("Motion")) {
-            	continue;
+        	
+        	// Extract Motion component from the map entry
+            Motion m = entry.getValue();
+            
+            // Skip if no Transform for this entity --> Motion w/o Transform = can't update position
+            if (!transforms.containsKey(entityId)) {
+                continue;
             }
             
-            // get Transform component (position)
-            Transform t = (Transform) e.getComponent("Transform");
+            // Get Transform component for this entity --> holds the position (x, y) and rotation data
+            Transform t = transforms.get(entityId);
             
-            // get Motion component (velocity/accel settings)
-            Motion m = (Motion) e.getComponent("Motion");
-            
-            // check for missing components
+            // Check for null components
             if (t == null || m == null) {
-            	continue;
+                continue;
             }
             
-            // compute new vx using acceleration
-            // v = v + a*dt
+            // Physic Calculation: Acceleration --> velocity 
+            // using: v_new = v_old + a * dt
+            // vx = horizontal velocity, getAx() = horizontal acceleration
             float vx = m.getVx() + m.getAx() * dt;
             
-            // compute new vy using acceleration
-            // v = v + a*dt
+             // vy = vertical velocity, getAy() = vertical acceleration
             float vy = m.getVy() + m.getAy() * dt;
-
-            // add gravity if enabled
+            
+            // Physic Calculation: Gravity (if enabled) --> only affects vertical velocity (vy)
             if (m.isGravityEnabled()) {
-                vy += GRAVITY * dt;
+                vy += GRAVITY * dt;		 // GRAVITY is constant (980 pixels/sec²)
             }
-
-            // read speed cap
+            
+            // Physic Calculation: Clamp to Max Speed
+            // Get the maximum allowed speed for this entity
             float max = m.getMaxSpeed();
             
-            // clamp speed if maxSpeed is set
+            // Only clamp if maxSpeed is set (> 0)
             if (max > 0f) {
-            	
-            	// compute speed^2
+            	// Calculate speed squared (faster than sqrt)
+                // speed² = vx² + vy² (Pythagorean theorem)
                 float speedSq = vx * vx + vy * vy;
                 
-                // compute maxSpeed^2
+                // Calculate maxSpeed squared
                 float maxSq = max * max;
                 
-                // if too fast, scale velocity down
+                // Check if current speed exceeds maximum speed
                 if (speedSq > maxSq) {
-                	
-                	// compute actual speed
+                	// Calculate actual speed using square root
+                    // speed = √(vx² + vy²)
                     float speed = (float) Math.sqrt(speedSq);
                     
-                    // avoid divide-by-zero
+                    // Avoid division by zero
                     if (speed > 0f) {
-                    	
-                    	// compute scaling factor
+                    	// Calculate scaling factor to reduce speed to max
+                        // scale = maxSpeed / currentSpeed
                         float scale = max / speed;
                         
-                        // scale vx
+                        // Scale down horizontal velocity
                         vx *= scale;
-                         
-                        // scale vy
+                        
+                        // Scale down vertical velocity
                         vy *= scale;
                     }
                 }
             }
             
-            // update x position using vx
-            // p = p + v*dt
+            // Physic Calculation: Velocity --> Position
+            // Update x position using: x_new = x_old + vx * dt
             t.setX(t.getX() + vx * dt);
             
-            // update y position using vy
+            // Update y position using: y_new = y_old + vy * dt
             t.setY(t.getY() + vy * dt);
-
-            // store updated vx back into Motion
-            m.setVx(vx);
             
-            // store updated vy back into Motion
+            // Update velocity in Motion
+            m.setVx(vx);
             m.setVy(vy);
-
-            // optional: reset accel if per-frame forces
-            // m.setAx(0f);
-            // m.setAy(0f);
         }
+
     }
 
-    // update() = usually called by the engine each frame; delegates to apply()
+    // Update called by engine each frame
     public void update(float dt, EntityManager em) {
         apply(dt, em);
     }
     
-    
-    // dispose manager
+    // Clean up resources
     public void dispose() {
+    	// Clean up transforms map
+        if (transforms != null) {
+        	// Remove all entries from the map --> helps garbage collector free memory faster
+            transforms.clear();
+            
+            // Set reference to null for garbage collection
+            transforms = null;
+        }
         
+        // Clean up motions map
+        if (motions != null) {
+        	// Remove all entries from the map + release references to all motion components
+            motions.clear();
+            
+            // Set reference to null for garbage collection
+            motions = null;
+        }
     }
 }
 

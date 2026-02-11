@@ -14,14 +14,21 @@ public class Transform {
     // Orientation of the entity
     private float rotation;
     
-    // Constructor with default rotation --> Common case: just position
+    // Default constructor - everything at origin
+    public Transform() {
+        this.x = 0f;
+        this.y = 0f;
+        this.rotation = 0f;
+    }
+    
+    // Constructor with position only - rotation defaults to 0
     public Transform(float x, float y) {
         this.x = x;
         this.y = y;
         this.rotation = 0f;
     }
     
-    // Constructor with explicit rotation --> Advanced case: full control
+    // Constructor with full control
     public Transform(float x, float y, float rotation) {
         this.x = x;
         this.y = y;
@@ -37,5 +44,11 @@ public class Transform {
     public void setX(float x) { this.x = x; }
     public void setY(float y) { this.y = y; }
     public void setRotation(float rotation) { this.rotation = rotation; }
+    
+    // Convenience method to set both x and y at once
+    public void setPosition(float x, float y) {
+        this.x = x;
+        this.y = y;
+    }
 }
 
