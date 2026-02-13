@@ -2,7 +2,9 @@ package io.github.some_example_name.movement;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List; 
 
+import io.github.some_example_name.entity.Entity;
 import io.github.some_example_name.entity.EntityManager;
 
 /**
@@ -11,20 +13,21 @@ import io.github.some_example_name.entity.EntityManager;
  */
 
 public class MovementManager {
-
-    // gravity acceleration (pixels/sec^2). Flip sign if your Y-axis is up.
-    private static final float GRAVITY = 980f;
-    
+  
     // Store Transform components by entity ID
     private Map<Integer, Transform> transforms;
     
     // Store Motion components by entity ID
     private Map<Integer, Motion> motions;
     
+    // Delegate calculations to PhysicsCalculation
+    private PhysicsCalculation calculator;  
+    
     // Initialize the manager
     public void init() {
         transforms = new HashMap<>();
         motions = new HashMap<>();
+        calculator = new PhysicsCalculation();
     }
     
     // Register an entity with movement components
@@ -71,91 +74,32 @@ public class MovementManager {
     	// Check if maps are initialized
         if (transforms == null || motions == null) return;
         
-        // Loop through all entities that have Motion as not all entities need to move
-        for (Map.Entry<Integer, Motion> entry : motions.entrySet()) {
-        	// Extract entity ID from the map entry
-        	int entityId = entry.getKey();
-        	
-        	// Talk to EntityManager for the active entity 
-            if (!em.isActive(entityId)) {
-                continue; 
-            }
-        	
-        	// Extract Motion component from the map entry
-            Motion m = entry.getValue();
+        // Check if calculator is initialized
+        if (calculator == null) return;
+        
+        // Get all active entities from EntityManager
+        List<Entity> activeEntities = em.getActiveEntities();
+        
+        // Check if list is valid
+        if (activeEntities == null) return;
+
+        // Loop through all active entities
+        for (Entity entity : activeEntities) {
+            // Get entity ID
+            int entityId = entity.getId();
             
-            // Skip if no Transform for this entity --> Motion w/o Transform = can't update position
-            if (!transforms.containsKey(entityId)) {
-                continue;
-            }
-            
-            // Get Transform component for this entity --> holds the position (x, y) and rotation data
-            Transform t = transforms.get(entityId);
+            // Get Motion and Transform components
+            Motion m = getMotion(entityId);     
+            Transform t = getTransform(entityId);
             
             // Check for null components
             if (t == null || m == null) {
                 continue;
             }
             
-            // Physic Calculation: Acceleration --> velocity 
-            // using: v_new = v_old + a * dt
-            // vx = horizontal velocity, getAx() = horizontal acceleration
-            float vx = m.getVx() + m.getAx() * dt;
-            
-             // vy = vertical velocity, getAy() = vertical acceleration
-            float vy = m.getVy() + m.getAy() * dt;
-            
-            // Physic Calculation: Gravity (if enabled) --> only affects vertical velocity (vy)
-            if (m.isGravityEnabled()) {
-                vy += GRAVITY * dt;		 // GRAVITY is constant (980 pixels/sec²)
-            }
-            
-            // Physic Calculation: Clamp to Max Speed
-            // Get the maximum allowed speed for this entity
-            float max = m.getMaxSpeed();
-            
-            // Only clamp if maxSpeed is set (> 0)
-            if (max > 0f) {
-            	// Calculate speed squared (faster than sqrt)
-                // speed² = vx² + vy² (Pythagorean theorem)
-                float speedSq = vx * vx + vy * vy;
-                
-                // Calculate maxSpeed squared
-                float maxSq = max * max;
-                
-                // Check if current speed exceeds maximum speed
-                if (speedSq > maxSq) {
-                	// Calculate actual speed using square root
-                    // speed = √(vx² + vy²)
-                    float speed = (float) Math.sqrt(speedSq);
-                    
-                    // Avoid division by zero
-                    if (speed > 0f) {
-                    	// Calculate scaling factor to reduce speed to max
-                        // scale = maxSpeed / currentSpeed
-                        float scale = max / speed;
-                        
-                        // Scale down horizontal velocity
-                        vx *= scale;
-                        
-                        // Scale down vertical velocity
-                        vy *= scale;
-                    }
-                }
-            }
-            
-            // Physic Calculation: Velocity --> Position
-            // Update x position using: x_new = x_old + vx * dt
-            t.setX(t.getX() + vx * dt);
-            
-            // Update y position using: y_new = y_old + vy * dt
-            t.setY(t.getY() + vy * dt);
-            
-            // Update velocity in Motion
-            m.setVx(vx);
-            m.setVy(vy);
+            // DELEGATE to calculator (for physics calculation)
+            calculator.calculate(t, m, dt);
         }
-
     }
 
     // Update called by engine each frame
@@ -182,6 +126,9 @@ public class MovementManager {
             // Set reference to null for garbage collection
             motions = null;
         }
+        
+        // Clear the calculator reference
+        calculator = null;  // NEW
     }
 }
 
