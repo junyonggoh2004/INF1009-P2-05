@@ -6,23 +6,18 @@ import io.github.some_example_name.entity.Component;
  * Collider component.
  * 
  * This class ONLY stores collision data.
- * It does NOT detect, resolve, or notify.
  * 
- * SRP:
- * - This class = data holder.
  */
 public class Collider implements Component {
 
-    // Supported collision shapes (can extend later without modifying manager logic)
-    public enum Shape { RECT, CIRCLE }
+    // Supported collision shapes (can extend later)
+    public enum Shape { RECT }
 
     // Shape type of this collider
     private Shape shape;
 
-    // Used if shape = RECT can do 
     private float width, height;
 
-    // Used if shape = CIRCLE
     private float radius;
 
     // Offset from entity's Transform position
@@ -54,8 +49,8 @@ public class Collider implements Component {
 
 
 
-    // --- Getters only ---
-    // No setters → collider configuration should be stable once created
+    // Getters only
+    // No setters as collider configuration should be stable once created
 
     public Shape getShape() { return shape; }
 
