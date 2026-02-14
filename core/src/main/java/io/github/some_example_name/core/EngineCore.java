@@ -85,9 +85,8 @@ public class EngineCore {
 //        movementManager.apply(dt, entityManager);
 //
 //        // 5. Detect and resolve collisions
-//        collisionManager.detectAll(entityManager);
-//        collisionManager.resolveAll(entityManager);
-    }
+//        collisionManager.update(dt, entityManager);
+}
 
     /**
      * Render the game

@@ -12,33 +12,34 @@ import io.github.some_example_name.movement.Transform;
 
 /**
  * CollisionManager:
- * - finds entities with Collider
- * - checks pairs for collision (does NOT care what shape they are)
- * - notifies ONCE when collision starts 
+ * - collects entities with Collider
+ * - checks pairs for collision (using CollisionDetector)
+ * - calls resolver (if provided)
+ * - notifies ONCE when collision starts
  *
- * this class = orchestration only.
+ * Orchestration only.
  */
 public class CollisionManager {
 
-    // which layers can collide
     private boolean[][] collisionMatrix;
-
-    // manager-to-manager is allowed (we need positions)
     private MovementManager movementManager;
-
-    // track pairs currently colliding so we only fire once
+    private CollisionResolver resolver;
     private final Set<Long> activePairs = new HashSet<>();
 
     public void init(MovementManager mm, int layerCount) {
         this.movementManager = mm;
 
-        // default: everything collides with everything
         collisionMatrix = new boolean[layerCount][layerCount];
         for (int i = 0; i < layerCount; i++) {
             for (int j = 0; j < layerCount; j++) {
                 collisionMatrix[i][j] = true;
             }
         }
+    }
+
+    // demo to inject resolver
+    public void setResolver(CollisionResolver resolver) {
+        this.resolver = resolver;
     }
 
     public void update(float dt, EntityManager em) {
@@ -61,27 +62,29 @@ public class CollisionManager {
                 Transform tb = movementManager.getTransform(b.getId());
                 if (cb == null || tb == null) continue;
 
-                // layer rule
                 if (!canCollide(ca.getLayer(), cb.getLayer())) continue;
 
-                // world position = transform + collider offset
                 float ax = ta.getX() + ca.getOffsetX();
                 float ay = ta.getY() + ca.getOffsetY();
                 float bx = tb.getX() + cb.getOffsetX();
                 float by = tb.getY() + cb.getOffsetY();
 
-                // ONE entry point for all shapes 
-                boolean hit = CollisionMath.intersects(ca, cb, ax, ay, bx, by);
+                //use the detector
+                boolean hit = CollisionDetector.intersects(ca, cb, ax, ay, bx, by);
 
                 long key = pairKey(a.getId(), b.getId());
 
                 if (hit) {
-                    //  fire once when collision starts
+                    // call resolver every frame while overlapping 
+                    if (resolver != null) {
+                        resolver.resolve(ca, cb, ta, tb, ax, ay, bx, by);
+                    }
+
+                    // notify once on enter
                     if (activePairs.add(key)) {
                         notifyCollision(a, b);
                     }
                 } else {
-                    // separated> allow future collision event again
                     activePairs.remove(key);
                 }
             }
@@ -91,10 +94,9 @@ public class CollisionManager {
     public void dispose() {
         collisionMatrix = null;
         movementManager = null;
+        resolver = null;
         activePairs.clear();
     }
-
-    // --- helpers ---
 
     private void notifyCollision(Entity a, Entity b) {
         CollisionHandler ha = a.getComponent(CollisionHandler.class);
@@ -109,7 +111,6 @@ public class CollisionManager {
         return (list != null) ? list : new ArrayList<>();
     }
 
-    // unique key for pair (A,B) regardless of order
     private long pairKey(int idA, int idB) {
         int min = Math.min(idA, idB);
         int max = Math.max(idA, idB);
@@ -118,10 +119,8 @@ public class CollisionManager {
 
     private boolean canCollide(int layerA, int layerB) {
         if (collisionMatrix == null) return true;
-
         if (layerA < 0 || layerB < 0) return false;
         if (layerA >= collisionMatrix.length || layerB >= collisionMatrix.length) return false;
-
         return collisionMatrix[layerA][layerB];
     }
 
@@ -131,6 +130,6 @@ public class CollisionManager {
         if (a >= collisionMatrix.length || b >= collisionMatrix.length) return;
 
         collisionMatrix[a][b] = canCollide;
-        collisionMatrix[b][a] = canCollide; // symmetric
+        collisionMatrix[b][a] = canCollide;
     }
 }
