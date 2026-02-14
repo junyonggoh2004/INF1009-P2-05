@@ -6,7 +6,6 @@ import io.github.some_example_name.input.InputManager;
 import io.github.some_example_name.movement.MovementManager;
 import io.github.some_example_name.output.OutputManager;
 import io.github.some_example_name.scene.SceneManager;
-import io.github.some_example_name.inputoutput.IOManager;
 
 public class EngineCore {
 
@@ -17,7 +16,6 @@ public class EngineCore {
     private CollisionManager collisionManager;
     private OutputManager outputManager;
     private InputManager inputManager;
-    private IOManager ioManager;
 
     // Game loop control
     private boolean running;
@@ -29,7 +27,6 @@ public class EngineCore {
         entityManager = new EntityManager();
         sceneManager = new SceneManager();
         inputManager = new InputManager();
-        ioManager = new IOManager();
         movementManager = new MovementManager();
         collisionManager = new CollisionManager();
         outputManager = new OutputManager();
@@ -166,8 +163,5 @@ public class EngineCore {
 
     public MovementManager getMovementManager() {
         return movementManager;
-    }
-    public IOManager getIoManager() {
-        return ioManager;
     }
 }
