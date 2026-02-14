@@ -1,6 +1,6 @@
 package io.github.some_example_name.entity;
 
-import javax.swing.text.html.parser.Entity;
+//import javax.swing.text.html.parser.Entity;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Collection;
@@ -17,7 +17,7 @@ public class EntityManager {
     }
 
     public Entity createEntity() {
-        Entity entity = new Entity();
+    	Entity entity = new Entity(nextId);
         entities.put(nextId, entity);
         nextId++;
         return entity;
@@ -92,4 +92,4 @@ public class EntityManager {
         entities.clear();
     }
 }
-}
+
