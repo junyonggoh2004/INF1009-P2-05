@@ -12,19 +12,21 @@ import io.github.some_example_name.movement.Transform;
 
 /**
  * CollisionManager:
- * - Collect entities with Collider
- * - Detect collisions (RECT vs RECT only)
- * - Notify collision ONCE when collision starts (no spam every frame)
+ * - finds entities with Collider
+ * - checks pairs for collision (does NOT care what shape they are)
+ * - notifies ONCE when collision starts 
+ *
+ * this class = orchestration only.
  */
 public class CollisionManager {
 
     // which layers can collide
     private boolean[][] collisionMatrix;
 
-    // manager-to-manager is allowed (we need Transform positions)
+    // manager-to-manager is allowed (we need positions)
     private MovementManager movementManager;
 
-    // remembers pairs that are currently colliding (so we only notify once)
+    // track pairs currently colliding so we only fire once
     private final Set<Long> activePairs = new HashSet<>();
 
     public void init(MovementManager mm, int layerCount) {
@@ -62,27 +64,24 @@ public class CollisionManager {
                 // layer rule
                 if (!canCollide(ca.getLayer(), cb.getLayer())) continue;
 
-                // simple scope: RECT vs RECT only
-                if (ca.getShape() != Collider.Shape.RECT || cb.getShape() != Collider.Shape.RECT) continue;
-
-                // world position (Transform + collider offset)
+                // world position = transform + collider offset
                 float ax = ta.getX() + ca.getOffsetX();
                 float ay = ta.getY() + ca.getOffsetY();
                 float bx = tb.getX() + cb.getOffsetX();
                 float by = tb.getY() + cb.getOffsetY();
 
-                boolean hit = CollisionMath.checkAabb(ca, cb, ax, ay, bx, by);
+                // ONE entry point for all shapes 
+                boolean hit = CollisionMath.intersects(ca, cb, ax, ay, bx, by);
 
                 long key = pairKey(a.getId(), b.getId());
 
                 if (hit) {
-                    // only fire once when collision starts
-                    if (!activePairs.contains(key)) {
-                        activePairs.add(key);
+                    //  fire once when collision starts
+                    if (activePairs.add(key)) {
                         notifyCollision(a, b);
                     }
                 } else {
-                    // separated -> allow future collision event again
+                    // separated> allow future collision event again
                     activePairs.remove(key);
                 }
             }
@@ -90,12 +89,12 @@ public class CollisionManager {
     }
 
     public void dispose() {
-        if (collisionMatrix != null) collisionMatrix = null;
+        collisionMatrix = null;
         movementManager = null;
         activePairs.clear();
     }
 
-    //Helpers
+    // --- helpers ---
 
     private void notifyCollision(Entity a, Entity b) {
         CollisionHandler ha = a.getComponent(CollisionHandler.class);
@@ -110,7 +109,7 @@ public class CollisionManager {
         return (list != null) ? list : new ArrayList<>();
     }
 
-    //  unique key for pair (A,B) regardless of order
+    // unique key for pair (A,B) regardless of order
     private long pairKey(int idA, int idB) {
         int min = Math.min(idA, idB);
         int max = Math.max(idA, idB);
