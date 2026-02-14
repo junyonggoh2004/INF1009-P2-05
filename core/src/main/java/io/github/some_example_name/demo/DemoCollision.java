@@ -22,7 +22,7 @@ public class DemoCollision {
         Entity a = em.createEntity();
         Entity b = em.createEntity();
 
-        // Add components (STRING-BASED since your UML uses String keys)
+        // Add components 
         a.add(Collider.rect(50, 50, 0, 0, 0, false));
         b.add(Collider.rect(50, 50, 0, 0, 0, false));
 
