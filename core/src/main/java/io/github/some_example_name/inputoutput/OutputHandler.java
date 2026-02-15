@@ -10,9 +10,11 @@ public class OutputHandler {
 
     // COMPOSITION: OutputHandler "owns" the AudioManager
     private AudioManager audioManager;
+    private ConsoleLogger consoleLogger;
 
     public OutputHandler() {
         this.audioManager = new AudioManager();
+        this.consoleLogger = new ConsoleLogger();
     }
 
     // --- ACCESSOR ---
@@ -22,10 +24,9 @@ public class OutputHandler {
     }
 
     // --- CONSOLE LOGGING ---
-    // Right now it prints to the debug window. Later, you could make it print to a GUI box.
-    public void log(String message) {
-        // We add a tag [ENGINE] so it's easy to read in the messy debug window
-        System.out.println("[ENGINE]: " + message);
+    // This allows the rest of the engine can use the logger
+    public ConsoleLogger getLogger() {
+        return consoleLogger;
     }
 
     // --- CLEANUP ---
