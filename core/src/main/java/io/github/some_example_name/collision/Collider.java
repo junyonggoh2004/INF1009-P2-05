@@ -4,6 +4,9 @@ import io.github.some_example_name.entity.Component;
 
 /**
  * Collider component.
+ * Stores collision data only.
+
+ * 
  * 
  */public class Collider implements Component {
 	    private float width, height;
@@ -11,14 +14,16 @@ import io.github.some_example_name.entity.Component;
 	    private int layer;
 	    private boolean trigger;
 
-	    //shape for Collision
-	    public static Collider rect(float w, float h, float offsetX, float offsetY, int layer, boolean trigger) {
-	        Collider c = new Collider();
-	        c.width = w; c.height = h;
-	        c.offsetX = offsetX; c.offsetY = offsetY;
-	        c.layer = layer; c.trigger = trigger;
-	        return c;
-	    }
+	    public Collider(float w, float h,
+                float offsetX, float offsetY,
+                int layer, boolean trigger) {
+		    this.width = w;
+		    this.height = h;
+		    this.offsetX = offsetX;
+		    this.offsetY = offsetY;
+		    this.layer = layer;
+		    this.trigger = trigger;
+		}
 
 	    public float getWidth() { return width; }
 	    public float getHeight() { return height; }

@@ -64,7 +64,7 @@ public class DemoGame extends ApplicationAdapter {
 
         // Player box FIRST (so we can pass it to DebugResolver)
         box = em.createEntity();
-        box.add(Collider.rect(120, 60, 0, 0, LAYER_PLAYER, false));
+        box.add(new Collider(120, 60, 0, 0, LAYER_PLAYER, false));
 
         mm.register(box.getId(),
                 new Transform(worldW / 2f - 60f, 40f),
@@ -164,8 +164,8 @@ public class DemoGame extends ApplicationAdapter {
         float x = rng.nextFloat() * (worldW - targetW);
         float y = worldH + 20f;
 
-        // MONEY is on its own layer (so money vs money can be disabled)
-        money.add(Collider.rect(targetW, targetH, 0f, 0f, LAYER_MONEY, false));
+        // MONEY is on its own layer
+        money.add(new Collider(targetW, targetH, 0f, 0f, LAYER_MONEY, false));
         mm.register(money.getId(), new Transform(x, y), new Motion(0f, moneyFallSpeed));
     }
 
