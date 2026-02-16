@@ -2,6 +2,7 @@ package io.github.some_example_name.inputoutput;
 
 import com.badlogic.gdx.utils.Disposable;
 import io.github.some_example_name.inputoutput.input.InputHandler;
+import io.github.some_example_name.inputoutput.output.OutputHandler;
 
 /**
  * THE CONNECTOR

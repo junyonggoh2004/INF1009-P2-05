@@ -5,6 +5,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.math.MathUtils;
+import io.github.some_example_name.inputoutput.output.GameAudio;
 
 public class OutputDemo extends ApplicationAdapter {
 

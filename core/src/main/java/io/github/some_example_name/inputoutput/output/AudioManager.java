@@ -1,4 +1,4 @@
-package io.github.some_example_name.inputoutput;
+package io.github.some_example_name.inputoutput.output;
 
 import java.util.HashMap;
 import java.util.Map;
