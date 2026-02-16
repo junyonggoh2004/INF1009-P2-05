@@ -33,16 +33,21 @@ public class CollisionManager {
     /**
      * Initializes the manager and creates the collision matrix.
      *
-     * @param mm         MovementManager (used to fetch Transforms)
-     * @param layerCount number of collision layers 
+     * mm         MovementManager (used to fetch Transforms)
+     * layerCount number of collision layers 
      */
-    public void init(MovementManager mm, int layerCount) {
+    		 public void init(MovementManager mm,
+                     CollisionDetector detector,
+                     CollisionResolver resolver,
+                     int layerCount) {
+
         this.movementManager = mm;
+        this.detector = detector;
+        this.resolver = resolver;
 
         if (layerCount <= 0) layerCount = 1;
-        collisionMatrix = new boolean[layerCount][layerCount];
 
-        // Default: everything collides with everything
+        collisionMatrix = new boolean[layerCount][layerCount];
         for (int i = 0; i < layerCount; i++) {
             for (int j = 0; j < layerCount; j++) {
                 collisionMatrix[i][j] = true;
@@ -50,8 +55,6 @@ public class CollisionManager {
         }
     }
 
-    public void setDetector(CollisionDetector detector) { this.detector = detector; }
-    public void setResolver(CollisionResolver resolver) { this.resolver = resolver; }
 
     public void setEnableTriggers(boolean enableTriggers) {
         this.enableTriggers = enableTriggers;

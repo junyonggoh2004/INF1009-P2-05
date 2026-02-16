@@ -72,10 +72,8 @@ public class DemoGame extends ApplicationAdapter {
 
         // Collision system (new scalable manager)
         cm = new CollisionManager();
-        cm.init(mm, LAYER_COUNT);
-        cm.setDetector(new RectCollisionDetector());
-        cm.setResolver(new DebugResolver(box));
-
+        cm.init(mm, new RectCollisionDetector(), new DebugResolver(box), LAYER_COUNT);
+  
         // Scalability win: money does NOT collide with money
         cm.setLayerCollision(LAYER_MONEY, LAYER_MONEY, false);
     }
