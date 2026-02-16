@@ -11,6 +11,7 @@ import java.util.Random;
 
 import io.github.some_example_name.collision.Collider;
 import io.github.some_example_name.collision.CollisionManager;
+import io.github.some_example_name.collision.RectCollisionDetector;
 import io.github.some_example_name.entity.Entity;
 import io.github.some_example_name.entity.EntityManager;
 import io.github.some_example_name.movement.Motion;
@@ -21,7 +22,6 @@ public class DemoGame extends ApplicationAdapter {
 
     private SpriteBatch batch;
 
-    // rename: box + money
     private Texture boxImg;
     private Texture moneyImg;
     private Texture bgImg; // optional
@@ -32,7 +32,7 @@ public class DemoGame extends ApplicationAdapter {
     private MovementManager mm;
     private CollisionManager cm;
 
-    private Entity box; // basket renamed to box
+    private Entity box;
 
     private float spawnTimer = 0f;
     private float spawnInterval = 0.15f;
@@ -41,14 +41,18 @@ public class DemoGame extends ApplicationAdapter {
     private float worldW;
     private float worldH;
 
+    // Layers (scalable)
+    private static final int LAYER_PLAYER = 0;
+    private static final int LAYER_MONEY  = 1;
+    private static final int LAYER_COUNT  = 2;
+
     @Override
     public void create() {
         batch = new SpriteBatch();
 
-        // load images (from runtime assets root)
         boxImg = new Texture("blackbox.png");
         moneyImg = new Texture("SGD.png");
-        // bgImg = new Texture("bg.png"); // optional
+        // bgImg = new Texture("bg.png");
 
         worldW = Gdx.graphics.getWidth();
         worldH = Gdx.graphics.getHeight();
@@ -58,28 +62,28 @@ public class DemoGame extends ApplicationAdapter {
         mm = new MovementManager();
         mm.init();
 
-        cm = new CollisionManager();
-        cm.init(mm, 3);
-        cm.setResolver(new DebugResolver());
-
-        // Player box
+        // Player box FIRST (so we can pass it to DebugResolver)
         box = em.createEntity();
-        box.add(Collider.rect(120, 60, 0, 0, 0, false));
-        box.add(new PlayerHitHandler());
+        box.add(Collider.rect(120, 60, 0, 0, LAYER_PLAYER, false));
 
         mm.register(box.getId(),
                 new Transform(worldW / 2f - 60f, 40f),
-                new Motion(0, 0));
+                new Motion(0f, 0f));
+
+        // Collision system (new scalable manager)
+        cm = new CollisionManager();
+        cm.init(mm, LAYER_COUNT);
+        cm.setDetector(new RectCollisionDetector());
+        cm.setResolver(new DebugResolver(box));
+
+        // Scalability win: money does NOT collide with money
+        cm.setLayerCollision(LAYER_MONEY, LAYER_MONEY, false);
     }
 
     @Override
     public void render() {
         float dt = Gdx.graphics.getDeltaTime();
-        if (dt <= 0) return;
-
-        // tick flash timer
-        PlayerHitHandler h = box.getComponent(PlayerHitHandler.class);
-        if (h != null) h.tick(dt);
+        if (dt <= 0f) return;
 
         // input: move box left/right
         Motion bm = mm.getMotion(box.getId());
@@ -124,6 +128,7 @@ public class DemoGame extends ApplicationAdapter {
             batch.draw(bgImg, 0, 0, worldW, worldH);
         }
 
+        // draw entities
         for (Entity e : em.getActiveEntities()) {
             Collider c = e.getComponent(Collider.class);
             Transform t = mm.getTransform(e.getId());
@@ -133,18 +138,10 @@ public class DemoGame extends ApplicationAdapter {
             float y = t.getY() + c.getOffsetY();
 
             if (e == box) {
-                boolean flash = (h != null && h.isHitFlashActive());
-
-                // green flash
-                if (flash) batch.setColor(0.4f, 1f, 0.4f, 1f);
-                else batch.setColor(1f, 1f, 1f, 1f);
-
+                batch.setColor(1f, 1f, 1f, 1f);
                 batch.draw(boxImg, x, y, c.getWidth(), c.getHeight());
-                batch.setColor(1f, 1f, 1f, 1f); // reset
             } else {
                 batch.setColor(1f, 1f, 1f, 1f);
-
-                // draw money WITHOUT squeezing: keep aspect ratio
                 drawKeepAspect(moneyImg, x, y, c.getWidth(), c.getHeight());
             }
         }
@@ -157,7 +154,7 @@ public class DemoGame extends ApplicationAdapter {
 
         float targetW = 38f + rng.nextInt(10); // 38..47
 
-        // keep aspect ratio based on image itself
+        // keep aspect ratio
         float imgW = Math.max(1, moneyImg.getWidth());
         float imgH = Math.max(1, moneyImg.getHeight());
         float aspect = imgH / imgW;
@@ -167,12 +164,11 @@ public class DemoGame extends ApplicationAdapter {
         float x = rng.nextFloat() * (worldW - targetW);
         float y = worldH + 20f;
 
-        // collider matches draw size (so collision feels correct)
-        money.add(Collider.rect(targetW, targetH, 0, 0, 0, false));
+        // MONEY is on its own layer (so money vs money can be disabled)
+        money.add(Collider.rect(targetW, targetH, 0f, 0f, LAYER_MONEY, false));
         mm.register(money.getId(), new Transform(x, y), new Motion(0f, moneyFallSpeed));
     }
 
-    // Keeps image aspect ratio inside a target rectangle
     private void drawKeepAspect(Texture tex, float x, float y, float targetW, float targetH) {
         float imgW = Math.max(1, tex.getWidth());
         float imgH = Math.max(1, tex.getHeight());
@@ -183,16 +179,13 @@ public class DemoGame extends ApplicationAdapter {
         float drawH = targetH;
 
         if (imgAspect > targetAspect) {
-            // image is wider -> fit width
             drawW = targetW;
             drawH = targetW / imgAspect;
         } else {
-            // image is taller -> fit height
             drawH = targetH;
             drawW = targetH * imgAspect;
         }
 
-        // center it in the collider box
         float dx = x + (targetW - drawW) / 2f;
         float dy = y + (targetH - drawH) / 2f;
 
@@ -203,7 +196,7 @@ public class DemoGame extends ApplicationAdapter {
         for (Entity e : em.getActiveEntities()) {
             if (e == box) continue;
 
-            RemoveMe rm = e.getComponent(RemoveMe.class);
+            RemoveEntity rm = e.getComponent(RemoveEntity.class);
             if (rm != null) {
                 mm.unregister(e.getId());
                 em.destroyEntity(e.getId());
@@ -234,7 +227,7 @@ public class DemoGame extends ApplicationAdapter {
         float x = t.getX();
         float maxX = worldW - c.getWidth();
 
-        if (x < 0) t.setX(0);
+        if (x < 0f) t.setX(0f);
         if (x > maxX) t.setX(maxX);
     }
 

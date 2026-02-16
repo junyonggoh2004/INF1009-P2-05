@@ -1,9 +1,6 @@
 package io.github.some_example_name.collision;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import io.github.some_example_name.entity.Entity;
 import io.github.some_example_name.entity.EntityManager;
@@ -11,25 +8,41 @@ import io.github.some_example_name.movement.MovementManager;
 import io.github.some_example_name.movement.Transform;
 
 /**
- * CollisionManager:
- * - collects entities with Collider
- * - checks pairs for collision (using CollisionDetector)
- * - calls resolver (if provided)
- * - notifies ONCE when collision starts
+ * CollisionManager
  *
- * Orchestration only.
+ * Finds all entities that have a Collider component
+ * Checks each pair (A vs B) once
+ * Skips pairs that should not collide (layer filtering)
+ * If they overlap, it calls the resolver to handle the result
+ *
+ * CollisionManager talks to EntityManager + MovementManager.
  */
 public class CollisionManager {
 
-    private boolean[][] collisionMatrix;
-    private MovementManager movementManager;
+    private CollisionDetector detector;
     private CollisionResolver resolver;
-    private final Set<Long> activePairs = new HashSet<>();
+    private MovementManager movementManager;
 
+    // Layer filtering: layerA vs layerB
+    private boolean[][] collisionMatrix;
+
+    // If false, trigger colliders are ignored completely.
+    // If true, triggers can be detected, but we still avoid physical resolution for triggers.
+    private boolean enableTriggers = true;
+
+    /**
+     * Initializes the manager and creates the collision matrix.
+     *
+     * @param mm         MovementManager (used to fetch Transforms)
+     * @param layerCount number of collision layers 
+     */
     public void init(MovementManager mm, int layerCount) {
         this.movementManager = mm;
 
+        if (layerCount <= 0) layerCount = 1;
         collisionMatrix = new boolean[layerCount][layerCount];
+
+        // Default: everything collides with everything
         for (int i = 0; i < layerCount; i++) {
             for (int j = 0; j < layerCount; j++) {
                 collisionMatrix[i][j] = true;
@@ -37,99 +50,97 @@ public class CollisionManager {
         }
     }
 
-    // demo to inject resolver
-    public void setResolver(CollisionResolver resolver) {
-        this.resolver = resolver;
+    public void setDetector(CollisionDetector detector) { this.detector = detector; }
+    public void setResolver(CollisionResolver resolver) { this.resolver = resolver; }
+
+    public void setEnableTriggers(boolean enableTriggers) {
+        this.enableTriggers = enableTriggers;
+    }
+
+    /**
+     * Sets whether two layers should be tested for collision.
+     * This is symmetric: setting (A,B) also sets (B,A).
+     *
+     * Example:
+     * - setLayerCollision(1, 1, false)  // money doesn't collide with money
+     */
+    public void setLayerCollision(int layerA, int layerB, boolean canCollide) {
+        if (collisionMatrix == null) return;
+
+        if (layerA < 0 || layerB < 0 ||
+            layerA >= collisionMatrix.length ||
+            layerB >= collisionMatrix.length) {
+            return;
+        }
+
+        collisionMatrix[layerA][layerB] = canCollide;
+        collisionMatrix[layerB][layerA] = canCollide;
     }
 
     public void update(float dt, EntityManager em) {
-        if (em == null || movementManager == null) return;
+        if (em == null || movementManager == null || detector == null || collisionMatrix == null) return;
 
         List<Entity> entities = collectCollidables(em);
-        if (entities.size() < 2) return;
+        if (entities == null || entities.size() < 2) return;
 
         for (int i = 0; i < entities.size(); i++) {
             Entity a = entities.get(i);
 
-            Collider ca = a.getComponent(Collider.class);
-            Transform ta = movementManager.getTransform(a.getId());
-            if (ca == null || ta == null) continue;
+            Collider aCol = a.getComponent(Collider.class);
+            Transform aTr = movementManager.getTransform(a.getId());
+            if (aCol == null || aTr == null) continue;
+
+            if (!enableTriggers && aCol.isTrigger()) continue;
 
             for (int j = i + 1; j < entities.size(); j++) {
                 Entity b = entities.get(j);
 
-                Collider cb = b.getComponent(Collider.class);
-                Transform tb = movementManager.getTransform(b.getId());
-                if (cb == null || tb == null) continue;
+                Collider bCol = b.getComponent(Collider.class);
+                Transform bTr = movementManager.getTransform(b.getId());
+                if (bCol == null || bTr == null) continue;
 
-                if (!canCollide(ca.getLayer(), cb.getLayer())) continue;
+                if (!enableTriggers && bCol.isTrigger()) continue;
 
-                float ax = ta.getX() + ca.getOffsetX();
-                float ay = ta.getY() + ca.getOffsetY();
-                float bx = tb.getX() + cb.getOffsetX();
-                float by = tb.getY() + cb.getOffsetY();
+                if (!canCollide(aCol.getLayer(), bCol.getLayer())) continue;
 
-                //use the detector
-                boolean hit = CollisionDetector.intersects(ca, cb, ax, ay, bx, by);
+                if (detector.intersects(aCol, aTr, bCol, bTr)) {
 
-                long key = pairKey(a.getId(), b.getId());
-
-                if (hit) {
-                    // call resolver every frame while overlapping 
-                    if (resolver != null) {
-                        resolver.resolve(ca, cb, ta, tb, ax, ay, bx, by);
+                    // Only resolve "solid" collisions (non-trigger)
+                    if (resolver != null && !aCol.isTrigger() && !bCol.isTrigger()) {
+                        resolver.resolve(a, aCol, aTr, b, bCol, bTr);
                     }
-
-                    // notify once on enter
-                    if (activePairs.add(key)) {
-                        notifyCollision(a, b);
-                    }
-                } else {
-                    activePairs.remove(key);
                 }
             }
         }
     }
 
-    public void dispose() {
-        collisionMatrix = null;
-        movementManager = null;
-        resolver = null;
-        activePairs.clear();
-    }
-
-    private void notifyCollision(Entity a, Entity b) {
-        CollisionHandler ha = a.getComponent(CollisionHandler.class);
-        if (ha != null) ha.onCollision(a, b);
-
-        CollisionHandler hb = b.getComponent(CollisionHandler.class);
-        if (hb != null) hb.onCollision(b, a);
-    }
-
+    //Collects all entities that currently have a Collider component.    
     private List<Entity> collectCollidables(EntityManager em) {
-        List<Entity> list = em.getEntitiesWithComponent("Collider");
-        return (list != null) ? list : new ArrayList<>();
+        return em.getEntitiesWithComponent("Collider");
     }
 
-    private long pairKey(int idA, int idB) {
-        int min = Math.min(idA, idB);
-        int max = Math.max(idA, idB);
-        return (((long) min) << 32) | (max & 0xffffffffL);
-    }
+//Checks if whether two layers are allowed to collide.
+//The collisionMatrix = which layer combinations are valid.
+  
 
     private boolean canCollide(int layerA, int layerB) {
-        if (collisionMatrix == null) return true;
-        if (layerA < 0 || layerB < 0) return false;
-        if (layerA >= collisionMatrix.length || layerB >= collisionMatrix.length) return false;
+        if (collisionMatrix == null) return false;
+      
+        //If a layer index is invalid, we return false to avoid crashing.
+
+        if (layerA < 0 || layerB < 0 ||
+            layerA >= collisionMatrix.length ||
+            layerB >= collisionMatrix.length) {
+            return false;
+        }
+
         return collisionMatrix[layerA][layerB];
     }
 
-    public void setLayerCollision(int a, int b, boolean canCollide) {
-        if (collisionMatrix == null) return;
-        if (a < 0 || b < 0) return;
-        if (a >= collisionMatrix.length || b >= collisionMatrix.length) return;
-
-        collisionMatrix[a][b] = canCollide;
-        collisionMatrix[b][a] = canCollide;
+    public void dispose() {
+        movementManager = null;
+        resolver = null;
+        detector = null;
+        collisionMatrix = null;
     }
 }
