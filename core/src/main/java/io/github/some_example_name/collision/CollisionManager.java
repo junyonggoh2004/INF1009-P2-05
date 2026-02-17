@@ -14,6 +14,7 @@ import io.github.some_example_name.movement.Transform;
  * Checks each pair (A vs B) once
  * Skips pairs that should not collide (layer filtering)
  * If they overlap, it calls the resolver to handle the result
+ * and notifies CollisionHandlers on both entities.
  *
  * CollisionManager talks to EntityManager + MovementManager.
  */
@@ -34,9 +35,9 @@ public class CollisionManager {
      * Initializes the manager and creates the collision matrix.
      *
      * mm         MovementManager (used to fetch Transforms)
-     * layerCount number of collision layers 
+     * layerCount number of collision layers
      */
-    		 public void init(MovementManager mm,
+    public void init(MovementManager mm,
                      CollisionDetector detector,
                      CollisionResolver resolver,
                      int layerCount) {
@@ -55,7 +56,6 @@ public class CollisionManager {
         }
     }
 
-
     public void setEnableTriggers(boolean enableTriggers) {
         this.enableTriggers = enableTriggers;
     }
@@ -63,16 +63,13 @@ public class CollisionManager {
     /**
      * Sets whether two layers should be tested for collision.
      * This is symmetric: setting (A,B) also sets (B,A).
-     *
-     * Example:
-     * - setLayerCollision(1, 1, false)  // money doesn't collide with money
      */
     public void setLayerCollision(int layerA, int layerB, boolean canCollide) {
         if (collisionMatrix == null) return;
 
         if (layerA < 0 || layerB < 0 ||
-            layerA >= collisionMatrix.length ||
-            layerB >= collisionMatrix.length) {
+                layerA >= collisionMatrix.length ||
+                layerB >= collisionMatrix.length) {
             return;
         }
 
@@ -112,28 +109,38 @@ public class CollisionManager {
                     if (resolver != null && !aCol.isTrigger() && !bCol.isTrigger()) {
                         resolver.resolve(a, aCol, aTr, b, bCol, bTr);
                     }
+
+                    // ── Notify CollisionHandlers on both entities ──
+                    notifyCollision(a, b);
                 }
             }
         }
     }
 
-    //Collects all entities that currently have a Collider component.    
+    /**
+     * Notifies CollisionHandler components on both entities.
+     * If an entity has a CollisionHandler, its onCollision() is called.
+     */
+    private void notifyCollision(Entity a, Entity b) {
+        CollisionHandler ha = a.getComponent(CollisionHandler.class);
+        if (ha != null) ha.onCollision(a, b);
+
+        CollisionHandler hb = b.getComponent(CollisionHandler.class);
+        if (hb != null) hb.onCollision(b, a);
+    }
+
+    // Collects all entities that currently have a Collider component.
     private List<Entity> collectCollidables(EntityManager em) {
         return em.getEntitiesWithComponent("Collider");
     }
 
-//Checks if whether two layers are allowed to collide.
-//The collisionMatrix = which layer combinations are valid.
-  
-
+    // Checks whether two layers are allowed to collide.
     private boolean canCollide(int layerA, int layerB) {
         if (collisionMatrix == null) return false;
-      
-        //If a layer index is invalid, we return false to avoid crashing.
 
         if (layerA < 0 || layerB < 0 ||
-            layerA >= collisionMatrix.length ||
-            layerB >= collisionMatrix.length) {
+                layerA >= collisionMatrix.length ||
+                layerB >= collisionMatrix.length) {
             return false;
         }
 
