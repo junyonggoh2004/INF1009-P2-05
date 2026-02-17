@@ -10,7 +10,7 @@ public abstract class GameAudio implements Disposable {
 
     // "protected" means only children (SoundEffect, MusicTrack) can access these directly.
     protected String id;
-    protected float volume = 1.0f; // Default volume is 100% (1.0f)
+    protected float volume;
 
     // Constructor: We force every audio file to have an ID (name) when created.
     public GameAudio(String id) {
