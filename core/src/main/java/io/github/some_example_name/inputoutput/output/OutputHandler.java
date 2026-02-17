@@ -8,7 +8,6 @@ package io.github.some_example_name.inputoutput.output;
  */
 public class OutputHandler {
 
-    // COMPOSITION: OutputHandler "owns" the AudioManager
     private AudioManager audioManager;
     private ConsoleLogger consoleLogger;
 
@@ -31,7 +30,6 @@ public class OutputHandler {
 
     // --- CLEANUP ---
     public void dispose() {
-        // When OutputHandler dies, it takes the AudioManager with it.
         if (audioManager != null) {
             audioManager.dispose();
         }

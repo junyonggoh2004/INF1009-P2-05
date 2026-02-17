@@ -6,16 +6,13 @@ import io.github.some_example_name.inputoutput.output.OutputHandler;
 
 /**
  * THE CONNECTOR
- * This manager groups all "Inputs" (Keyboard/Mouse) and "Outputs" (Audio/Screen)
+ * This manager groups all "Inputs" (Keyboard/Mouse) and "Outputs" (Audio/Log)
  * into one place so the EngineCore can access them easily.
  */
 public class IOManager implements Disposable {
 
     private OutputHandler outputHandler;
     private InputHandler inputHandler;
-
-    // InputHandler Part (Commented out for now so code compiles):
-    // private InputHandler inputHandler;
 
     public IOManager() {
         // Initialize
@@ -24,7 +21,7 @@ public class IOManager implements Disposable {
     }
 
     // --- MAIN LOOP ---
-    // The EngineCore calls this 60 times a second.
+    // The EngineCore calls this.
     public void update(float dt) {
         // 1. Process Inputs
         inputHandler.update(dt);

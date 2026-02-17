@@ -11,10 +11,10 @@ import java.util.Map;
 public class AudioManager {
 
     // The Library: Stores all loaded audio files by their name (ID).
-    // Note: We use <String, GameAudio>. This Map can hold BOTH Music and Sounds!
+    // Note: We use <String, GameAudio>. This Map can hold BOTH Music and Sounds.
     private Map<String, GameAudio> audioLibrary;
 
-    // We track the currently playing music so we can stop it if we change scenes.
+    // Track the currently playing music so we can stop it if we change scenes.
     private GameAudio currentMusic;
 
     public AudioManager() {
@@ -39,8 +39,8 @@ public class AudioManager {
     // --- PLAYBACK METHODS ---
 
     /**
-     * The "Magic" Play Button.
-     * You just give it an ID, and it figures out what to do.
+     * The Play Button.
+     * Just give it an ID, and it figures out what to do.
      */
     public void playAudio(String id) {
         GameAudio audio = audioLibrary.get(id);
@@ -48,7 +48,7 @@ public class AudioManager {
         if (audio != null) {
             // LOGIC: Check if this audio is actually Music
             if (audio instanceof MusicTrack) {
-                // If music is already playing, stop it first!
+                // If music is already playing, stop it first.
                 if (currentMusic != null) {
                     currentMusic.stop();
                 }
@@ -56,7 +56,6 @@ public class AudioManager {
                 currentMusic = audio;
             }
 
-            // Polymorphism in action:
             // We call .play(), and the specific object (Music or Sound) does its own job.
             audio.play();
         } else {
@@ -72,7 +71,7 @@ public class AudioManager {
     }
 
     /**
-     * SAFE ACCESSOR (The Getter)
+     * The Getter
      * This allows other classes to grab a specific audio object to change its
      * volume or pitch, without exposing the entire library list.
      */

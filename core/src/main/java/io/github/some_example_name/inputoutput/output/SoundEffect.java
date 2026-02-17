@@ -10,7 +10,6 @@ import com.badlogic.gdx.audio.Sound;
  */
 public class SoundEffect extends GameAudio {
 
-    // This is the actual LibGDX object that does the heavy lifting
     private Sound sound;
 
     public SoundEffect(String id, String filePath) {
