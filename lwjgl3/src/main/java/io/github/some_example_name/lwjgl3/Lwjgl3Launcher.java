@@ -2,7 +2,8 @@ package io.github.some_example_name.lwjgl3;
 
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
-import io.github.some_example_name.demo.DemoGame;
+
+import io.github.some_example_name.prototype.PrototypeEngine;
 
 /** Launches the desktop (LWJGL3) application. */
 public class Lwjgl3Launcher {
@@ -12,7 +13,7 @@ public class Lwjgl3Launcher {
     }
 
     private static Lwjgl3Application createApplication() {
-        return new Lwjgl3Application(new DemoGame(), getDefaultConfiguration());
+        return new Lwjgl3Application(new PrototypeEngine(), getDefaultConfiguration());
 
     }
 
