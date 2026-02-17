@@ -1,170 +1,112 @@
 package io.github.some_example_name.core;
 
 import io.github.some_example_name.collision.CollisionManager;
+import io.github.some_example_name.collision.RectCollisionDetector;
 import io.github.some_example_name.entity.EntityManager;
 import io.github.some_example_name.input.InputManager;
 import io.github.some_example_name.movement.MovementManager;
 import io.github.some_example_name.output.OutputManager;
 import io.github.some_example_name.scene.SceneManager;
 import io.github.some_example_name.inputoutput.IOManager;
-
 public class EngineCore {
 
     // All managers (composition - EngineCore owns these)
-    private SceneManager sceneManager;
     private EntityManager entityManager;
     private MovementManager movementManager;
     private CollisionManager collisionManager;
+    private SceneManager sceneManager;
     private OutputManager outputManager;
     private InputManager inputManager;
     private IOManager ioManager;
 
-    // Game loop control
-    private boolean running;
-    private static final double TARGET_FPS = 60.0;
-    private static final double TARGET_FRAME_TIME = 1.0 / TARGET_FPS; // in seconds
+    /** Number of collision layers **/
+    private static final int COLLISION_LAYERS = 3;
 
-    public EngineCore() {
-        // Initialize all managers
+    /**
+     * Initializes all managers and wires them together.
+     * Call this once from ApplicationAdapter.create().
+     */
+    public void init() {
+        // Create managers
         entityManager = new EntityManager();
         sceneManager = new SceneManager();
         inputManager = new InputManager();
-        movementManager = new MovementManager();
-        collisionManager = new CollisionManager();
         outputManager = new OutputManager();
         ioManager = new IOManager();
 
-        running = false;
+        // Movement must init before collision (collision depends on it)
+        movementManager = new MovementManager();
+        movementManager.init();
+
+        // Collision: pass detector, resolver is null (game sets it later)
+        collisionManager = new CollisionManager();
+        collisionManager.init(movementManager, new RectCollisionDetector(), null, COLLISION_LAYERS);
     }
 
     /**
-     * Main game loop
-     */
-    public void run() {
-        running = true;
-
-        long lastTime = System.nanoTime();
-        double deltaTime = 0;
-
-        while (running) {
-            // Calculate delta time
-            long currentTime = System.nanoTime();
-            deltaTime = (currentTime - lastTime) / 1_000_000_000.0; // Convert to seconds
-            lastTime = currentTime;
-
-            // Cap delta time to avoid spiral of death
-            if (deltaTime > 0.25) {
-                deltaTime = 0.25;
-            }
-
-            // Core loop
-            update((float) deltaTime);
-            render();
-
-            // Frame rate limiting (optional)
-            sleep(currentTime);
-        }
-
-        shutdown();
-    }
-
-    /**
-     * Update all game systems
+     * Updates all game systems in the correct order.
+     * Call this every frame from ApplicationAdapter.render().
+     *
+     * @param dt delta time in seconds
      */
     public void update(float dt) {
-//        // 1. Poll input
-//        inputManager.poll();
-//
-//        // 2. Update current scene (handles scene-specific logic)
-//        sceneManager.update(dt);
-//
-//        // 3. Update all entities
-//        entityManager.updateAll(dt);
-//
-//        // 4. Apply movement/physics
-//        movementManager.apply(dt, entityManager);
-//
-//        // 5. Detect and resolve collisions
-//        collisionManager.update(dt, entityManager);
-}
+        if (dt <= 0) return;
 
-    /**
-     * Render the game
-     */
-    private void render() {
-        // outputManager.display(entityManager);
+        // 1. Process input/output
+        ioManager.update(dt);
 
-        // Optional: debug visuals
-        // outputManager.drawDebug(entityManager);
+        // 2. Entity-level updates (currently a hook)
+        entityManager.updateAll(dt);
+
+        // 3. Apply movement / physics
+        movementManager.update(dt, entityManager);
+
+        // 4. Detect and resolve collisions
+        collisionManager.update(dt, entityManager);
     }
 
     /**
-     * Frame rate limiter
+     * Cleans up all managers in reverse order of dependency.
+     * Call this from ApplicationAdapter.dispose().
      */
-    private void sleep(long frameStartTime) {
-        long frameTime = System.nanoTime() - frameStartTime;
-        long targetNanos = (long) (TARGET_FRAME_TIME * 1_000_000_000);
+    public void dispose() {
+        if (collisionManager != null) collisionManager.dispose();
+        if (movementManager != null) movementManager.dispose();
+        if (ioManager != null) ioManager.dispose();
 
-        if (frameTime < targetNanos) {
-            try {
-                Thread.sleep((targetNanos - frameTime) / 1_000_000);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }
-    }
-
-    /**
-     * Clean shutdown
-     */
-    public void shutdown() {
-        running = false;
-
-        // Cleanup in reverse order of dependency
-//        sceneManager.getCurrentScene().unload();
-//        outputManager.getSoundManager().stopSound();
-
-        // Nullify references (helps GC)
         entityManager = null;
-        sceneManager = null;
-        inputManager = null;
         movementManager = null;
         collisionManager = null;
+        sceneManager = null;
         outputManager = null;
-    }
-
-    /**
-     * Stop the game loop
-     */
-    public void stop() {
-        running = false;
+        inputManager = null;
+        ioManager = null;
     }
 
     // ============ Getters for managers ============
-    // (So scenes/entities can access them if needed)
-
-    public SceneManager getSceneManager() {
-        return sceneManager;
-    }
 
     public EntityManager getEntityManager() {
         return entityManager;
     }
 
-    public InputManager getInputManager() {
-        return inputManager;
-    }
-
-    public OutputManager getOutputManager() {
-        return outputManager;
+    public MovementManager getMovementManager() {
+        return movementManager;
     }
 
     public CollisionManager getCollisionManager() {
         return collisionManager;
     }
 
-    public MovementManager getMovementManager() {
-        return movementManager;
+    public SceneManager getSceneManager() {
+        return sceneManager;
+    }
+
+    public OutputManager getOutputManager() {
+        return outputManager;
+    }
+
+    public InputManager getInputManager() {
+        return inputManager;
     }
 
     public IOManager getIOManager() {

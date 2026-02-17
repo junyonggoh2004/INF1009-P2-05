@@ -20,10 +20,9 @@ public class EntityManager {
     }
 
     /**
-     * Creates a new entity with a unique ID.
-     * The entity starts with no components — add them after creation.
-     *
-     * @return The newly created entity
+     Creates a new entity with a unique ID.
+     The entity starts with no components — add them after creation.
+     @return The newly created entity
      */
     public Entity createEntity() {
         Entity entity = new Entity(nextId);
@@ -33,9 +32,8 @@ public class EntityManager {
     }
 
     /**
-     * Destroys an entity immediately and removes it from the manager.
-     *
-     * @param id The ID of the entity to destroy
+     Destroys an entity immediately and removes it from the manager.
+     @param id The ID of the entity to destroy
      */
     public void destroyEntity(int id) {
         Entity entity = entities.remove(id);
@@ -44,29 +42,27 @@ public class EntityManager {
         }
     }
 
+
     /**
-     * Gets an entity by its ID.
-     *
-     * @param id The entity ID
-     * @return The entity, or null if not found
+     Gets an entity by its ID.
+     @param id The entity ID
+     @return The entity, or null if not found
      */
     public Entity getEntity(int id) {
         return entities.get(id);
     }
 
     /**
-     * Gets all entities (active and inactive).
-     *
-     * @return Collection of all entities
+     Gets all entities (active and inactive).
+     @return Collection of all entities
      */
     public Collection<Entity> getAllEntities() {
         return entities.values();
     }
 
     /**
-     * Gets all active entities.
-     *
-     * @return List of entities where isActive() is true
+     Gets all active entities.
+     @return List of entities where isActive() is true
      */
     public List<Entity> getActiveEntities() {
         List<Entity> active = new ArrayList<>();
@@ -79,10 +75,9 @@ public class EntityManager {
     }
 
     /**
-     * Gets all active entities that have a specific component type.
-     *
-     * @param componentType The component type to filter by (class simple name)
-     * @return List of matching active entities
+     Gets all active entities that have a specific component type.
+     @param componentType The component type to filter by (class simple name)
+     @return List of matching active entities
      */
     public List<Entity> getEntitiesWithComponent(String componentType) {
         List<Entity> result = new ArrayList<>();
@@ -95,10 +90,9 @@ public class EntityManager {
     }
 
     /**
-     * Gets all active entities that have ALL of the specified component types.
-     *
-     * @param componentTypes The component types to filter by
-     * @return List of matching active entities
+     Gets all active entities that have ALL of the specified component types.
+     @param componentTypes The component types to filter by
+     @return List of matching active entities
      */
     public List<Entity> getEntitiesWithComponents(String... componentTypes) {
         List<Entity> result = new ArrayList<>();
@@ -120,19 +114,19 @@ public class EntityManager {
         return result;
     }
 
+
     /**
-     * Update hook called each frame.
-     * Currently a placeholder for entity-level updates.
-     * Individual component updates happen in their respective managers.
-     *
-     * @param dt Delta time since last frame
+     Update hook called each frame.
+     Currently a placeholder for entity-level updates.
+     Individual component updates happen in their respective managers.
+     @param dt Delta time since last frame
      */
     public void updateAll(float dt) {
         // Hook for entity-level updates
     }
 
     /**
-     * Remove all entities and reset.
+     Remove all entities and reset.
      */
     public void clear() {
         for (Entity entity : entities.values()) {
@@ -141,20 +135,19 @@ public class EntityManager {
         entities.clear();
     }
 
+
     /**
-     * Gets the total number of entities.
-     *
-     * @return Entity count
+     Gets the total number of entities.
+     @return Entity count
      */
     public int count() {
         return entities.size();
     }
 
     /**
-     * Checks if an entity with the given ID exists.
-     *
-     * @param id The entity ID
-     * @return true if entity exists
+     Checks if an entity with the given ID exists.
+     @param id The entity ID
+     @return true if entity exists
      */
     public boolean exists(int id) {
         return entities.containsKey(id);
