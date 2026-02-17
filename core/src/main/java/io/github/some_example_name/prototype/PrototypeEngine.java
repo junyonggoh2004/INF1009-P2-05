@@ -101,9 +101,9 @@ public class PrototypeEngine extends ApplicationAdapter {
         // Collision box matching the sprite size
         player.add(new Collider(PLAYER_SIZE, PLAYER_SIZE, 0, 0, 0, false));
 
-        // Collision handler — what happens when player touches something
+     // Register collision callback (demo rule: player collects circles)
         collectHandler = new CollectHandler();
-        player.add(collectHandler);
+        engine.getCollisionManager().setHandler(collectHandler);
 
         // Register movement at center of screen
         mm.register(player.getId(),

@@ -26,7 +26,9 @@ import io.github.some_example_name.movement.Transform;
 public class CollisionManager {
 
     private CollisionDetector detector;
-    private CollisionResolver resolver;        
+    private CollisionResolver resolver; 
+    private CollisionHandler handler; 
+
     private MovementManager movementManager;
 
     // collisionMatrix[a][b] == true means layer a is allowed to collide with layer b
@@ -47,6 +49,7 @@ public class CollisionManager {
     // For Exit events, we need to remember which entities were in each pair last frame.
     private final Map<Long, Entity[]> previousPairEntities = new HashMap<>();
     private final Map<Long, Entity[]> currentPairEntities  = new HashMap<>();
+
 
     /**
      * Initializes the manager and creates the collision matrix.
@@ -171,32 +174,25 @@ public class CollisionManager {
         // Save current state to become previous state for next frame
         commitFrameState();
     }
+    
+    public void setHandler(CollisionHandler handler) {
+        this.handler = handler;
+    }
 
-    //Event notifications (calls handlers on BOTH entities)
 
+    //fires collision events through a CollisionHandler callback
     private void notifyEnter(Entity a, Entity b) {
-        CollisionHandler ha = a.getComponent(CollisionHandler.class);
-        if (ha != null) ha.onEnter(a, b);
-
-        CollisionHandler hb = b.getComponent(CollisionHandler.class);
-        if (hb != null) hb.onEnter(b, a);
+        if (handler != null) handler.onEnter(a, b);
     }
 
     private void notifyStay(Entity a, Entity b) {
-        CollisionHandler ha = a.getComponent(CollisionHandler.class);
-        if (ha != null) ha.onStay(a, b);
-
-        CollisionHandler hb = b.getComponent(CollisionHandler.class);
-        if (hb != null) hb.onStay(b, a);
+        if (handler != null) handler.onStay(a, b);
     }
 
     private void notifyExit(Entity a, Entity b) {
-        CollisionHandler ha = a.getComponent(CollisionHandler.class);
-        if (ha != null) ha.onExit(a, b);
-
-        CollisionHandler hb = b.getComponent(CollisionHandler.class);
-        if (hb != null) hb.onExit(b, a);
+        if (handler != null) handler.onExit(a, b);
     }
+
 
   //Fires Exit for pairs that were colliding last frame but not this frame.
 
@@ -255,7 +251,9 @@ public class CollisionManager {
         movementManager = null;
         resolver = null;
         detector = null;
+        handler = null;
         collisionMatrix = null;
+        
 
         previousPairs.clear();
         currentPairs.clear();
