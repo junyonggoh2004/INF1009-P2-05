@@ -3,9 +3,7 @@ package io.github.some_example_name.core;
 import io.github.some_example_name.collision.CollisionManager;
 import io.github.some_example_name.collision.RectCollisionDetector;
 import io.github.some_example_name.entity.EntityManager;
-import io.github.some_example_name.input.InputManager;
 import io.github.some_example_name.movement.MovementManager;
-import io.github.some_example_name.output.OutputManager;
 import io.github.some_example_name.scene.SceneManager;
 import io.github.some_example_name.inputoutput.IOManager;
 public class EngineCore {
@@ -15,8 +13,6 @@ public class EngineCore {
     private MovementManager movementManager;
     private CollisionManager collisionManager;
     private SceneManager sceneManager;
-    private OutputManager outputManager;
-    private InputManager inputManager;
     private IOManager ioManager;
 
     /** Number of collision layers **/
@@ -30,8 +26,6 @@ public class EngineCore {
         // Create managers
         entityManager = new EntityManager();
         sceneManager = new SceneManager();
-        inputManager = new InputManager();
-        outputManager = new OutputManager();
         ioManager = new IOManager();
 
         // Movement must init before collision (collision depends on it)
@@ -78,8 +72,6 @@ public class EngineCore {
         movementManager = null;
         collisionManager = null;
         sceneManager = null;
-        outputManager = null;
-        inputManager = null;
         ioManager = null;
     }
 
@@ -99,14 +91,6 @@ public class EngineCore {
 
     public SceneManager getSceneManager() {
         return sceneManager;
-    }
-
-    public OutputManager getOutputManager() {
-        return outputManager;
-    }
-
-    public InputManager getInputManager() {
-        return inputManager;
     }
 
     public IOManager getIOManager() {

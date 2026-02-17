@@ -12,7 +12,6 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import java.util.Random;
 
 import io.github.some_example_name.collision.Collider;
-import io.github.some_example_name.collision.CollisionManager;
 import io.github.some_example_name.core.EngineCore;
 import io.github.some_example_name.entity.Entity;
 import io.github.some_example_name.entity.EntityManager;
@@ -37,7 +36,6 @@ public class PrototypeEngine extends ApplicationAdapter {
     private EngineCore engine;
     private EntityManager em;
     private MovementManager mm;
-    private CollisionManager cm;
 
     // ─── Rendering ───
     private ShapeRenderer shapeRenderer;
@@ -81,7 +79,6 @@ public class PrototypeEngine extends ApplicationAdapter {
         // Grab references for convenience
         em = engine.getEntityManager();
         mm = engine.getMovementManager();
-        cm = engine.getCollisionManager();
 
         // ─── Create game entities ───
         createPlayer();

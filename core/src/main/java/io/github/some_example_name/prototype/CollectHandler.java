@@ -20,7 +20,7 @@ public class CollectHandler implements CollisionHandler {
     }
 
     @Override
-    public void onCollision(Entity self, Entity other) {
+    public void onEnter(Entity self, Entity other) {
         // Only act on entities that have a Collectible component
         Collectible col = other.getComponent(Collectible.class);
         if (col == null || col.isCollected()) return;
@@ -41,4 +41,17 @@ public class CollectHandler implements CollisionHandler {
     public int getScore() {
         return score;
     }
+
+	@Override
+	public void onStay(Entity self, Entity other) {
+		//not needed for this handler
+		
+	}
+
+	@Override
+	public void onExit(Entity self, Entity other) {
+		//not needed for this handler
+
+		
+	}
 }
