@@ -19,6 +19,9 @@ import io.github.some_example_name.entity.Sprite;
 import io.github.some_example_name.movement.Motion;
 import io.github.some_example_name.movement.MovementManager;
 import io.github.some_example_name.movement.Transform;
+import io.github.some_example_name.scene.Scene;
+import io.github.some_example_name.scene.SceneManager;
+import io.github.some_example_name.scene.SolidColorScene;
 
 /**
  * Prototype game demonstrating the abstract engine.
@@ -27,7 +30,7 @@ import io.github.some_example_name.movement.Transform;
  * - Circles are scattered randomly on screen
  * - Touching a circle collects it (disappears)
  * - Circles respawn after a few seconds
- * - Background changes when all circles are collected
+ * - TAB swaps scene background color via SceneManager
  * - Score is displayed on screen
  */
 public class PrototypeEngine extends ApplicationAdapter {
@@ -55,10 +58,11 @@ public class PrototypeEngine extends ApplicationAdapter {
     private final Random rng = new Random();
     private float worldW, worldH;
 
-    // ─── Scene state (simple background color change) ───
-    private Color bgColor;
-    private static final Color BG_NORMAL = new Color(0.08f, 0.08f, 0.15f, 1f);
-    private static final Color BG_ALL_COLLECTED = new Color(0.05f, 0.15f, 0.08f, 1f);
+    // ─── Scene management ───
+    private SceneManager sceneManager;
+    private Scene defaultScene;
+    private Scene greenScene;
+    private Scene.Renderer sceneRenderer;
 
     @Override
     public void create() {
@@ -67,7 +71,6 @@ public class PrototypeEngine extends ApplicationAdapter {
         batch = new SpriteBatch();
         font = new BitmapFont();
         font.setColor(Color.WHITE);
-        bgColor = BG_NORMAL;
 
         worldW = Gdx.graphics.getWidth();
         worldH = Gdx.graphics.getHeight();
@@ -79,6 +82,13 @@ public class PrototypeEngine extends ApplicationAdapter {
         // Grab references for convenience
         em = engine.getEntityManager();
         mm = engine.getMovementManager();
+        sceneManager = engine.getSceneManager();
+        sceneRenderer = new GdxSceneRenderer();
+
+        defaultScene = new SolidColorScene("DefaultBackground", 0.08f, 0.08f, 0.15f, 1f);
+        greenScene = new SolidColorScene("GreenBackground", 0.05f, 0.15f, 0.08f, 1f);
+        sceneManager.setScene(defaultScene);
+        sceneManager.queueScene(greenScene);
 
         // ─── Create game entities ───
         createPlayer();
@@ -151,6 +161,7 @@ public class PrototypeEngine extends ApplicationAdapter {
 
         // 1. Handle input
         handleInput();
+        handleSceneInput();
 
         // 2. Engine update (movement → collision, in correct order)
         engine.update(dt);
@@ -158,7 +169,6 @@ public class PrototypeEngine extends ApplicationAdapter {
         // 3. Game-specific logic
         handleRespawns(dt);
         clampPlayerToScreen();
-        updateScene();
 
         // 4. Draw
         draw();
@@ -180,6 +190,17 @@ public class PrototypeEngine extends ApplicationAdapter {
 
         pm.setVx(vx);
         pm.setVy(vy);
+    }
+
+    private void handleSceneInput() {
+        if (!Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
+            return;
+        }
+
+        Scene currentScene = sceneManager.getCurrentScene();
+        Scene nextScene = (currentScene == greenScene) ? defaultScene : greenScene;
+        sceneManager.queueScene(nextScene);
+        sceneManager.switchScene();
     }
 
     // ─── Respawn logic ───
@@ -214,22 +235,6 @@ public class PrototypeEngine extends ApplicationAdapter {
         }
     }
 
-    // ─── Scene management (simple background color change) ───
-
-    private void updateScene() {
-        boolean allCollected = true;
-
-        for (Entity e : em.getActiveEntities()) {
-            Collectible col = e.getComponent(Collectible.class);
-            if (col != null && !col.isCollected()) {
-                allCollected = false;
-                break;
-            }
-        }
-
-        bgColor = allCollected ? BG_ALL_COLLECTED : BG_NORMAL;
-    }
-
     // ─── Clamp player to screen bounds ───
 
     private void clampPlayerToScreen() {
@@ -245,9 +250,14 @@ public class PrototypeEngine extends ApplicationAdapter {
     // ─── Rendering ───
 
     private void draw() {
-        // Clear screen with scene background color
-        Gdx.gl.glClearColor(bgColor.r, bgColor.g, bgColor.b, bgColor.a);
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        // Clear screen through scene abstraction.
+        Scene currentScene = sceneManager.getCurrentScene();
+        if (currentScene != null) {
+            currentScene.render(sceneRenderer);
+        } else {
+            Gdx.gl.glClearColor(0.08f, 0.08f, 0.15f, 1f);
+            Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        }
 
         // Enable transparency
         Gdx.gl.glEnable(GL20.GL_BLEND);
@@ -324,5 +334,13 @@ public class PrototypeEngine extends ApplicationAdapter {
         if (shapeRenderer != null) shapeRenderer.dispose();
         if (batch != null) batch.dispose();
         if (font != null) font.dispose();
+    }
+
+    private static class GdxSceneRenderer implements Scene.Renderer {
+        @Override
+        public void clear(float r, float g, float b, float a) {
+            Gdx.gl.glClearColor(r, g, b, a);
+            Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        }
     }
 }

@@ -49,13 +49,16 @@ public class EngineCore {
         // 1. Process input/output
         ioManager.update(dt);
 
-        // 2. Entity-level updates (currently a hook)
+        // 2. Update current scene logic
+        sceneManager.update(dt);
+
+        // 3. Entity-level updates (currently a hook)
         entityManager.updateAll(dt);
 
-        // 3. Apply movement / physics
+        // 4. Apply movement / physics
         movementManager.update(dt, entityManager);
 
-        // 4. Detect and resolve collisions
+        // 5. Detect and resolve collisions
         collisionManager.update(dt, entityManager);
     }
 
@@ -66,6 +69,7 @@ public class EngineCore {
     public void dispose() {
         if (collisionManager != null) collisionManager.dispose();
         if (movementManager != null) movementManager.dispose();
+        if (sceneManager != null) sceneManager.dispose();
         if (ioManager != null) ioManager.dispose();
 
         entityManager = null;
