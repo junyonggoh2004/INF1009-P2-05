@@ -1,8 +1,9 @@
 package io.github.some_example_name.collision;
 
+import io.github.some_example_name.entity.Component;
 import io.github.some_example_name.entity.Entity;
 
-public interface CollisionHandler   {
+public interface CollisionHandler extends Component {
  
     /** Fired once when self and other start colliding */
     void onEnter(Entity a, Entity b);

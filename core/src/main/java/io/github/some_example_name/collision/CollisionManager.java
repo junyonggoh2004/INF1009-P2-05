@@ -164,6 +164,12 @@ public class CollisionManager {
                     if (resolver != null && !aCol.isTrigger() && !bCol.isTrigger()) {
                         resolver.resolve(a, aCol, aTr, b, bCol, bTr);
                     }
+
+                    CollisionHandler ha = a.getComponent(CollisionHandler.class);
+                    if (ha != null) ha.onEnter(a, b);
+
+                    CollisionHandler hb = b.getComponent(CollisionHandler.class);
+                    if (hb != null) hb.onEnter(b, a);
                 }
             }
         }

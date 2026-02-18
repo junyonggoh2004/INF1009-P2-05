@@ -12,6 +12,7 @@ import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import java.util.Random;
 
 import io.github.some_example_name.collision.Collider;
+import io.github.some_example_name.collision.CollisionManager;
 import io.github.some_example_name.core.EngineCore;
 import io.github.some_example_name.entity.Entity;
 import io.github.some_example_name.entity.EntityManager;
@@ -21,17 +22,16 @@ import io.github.some_example_name.movement.MovementManager;
 import io.github.some_example_name.movement.Transform;
 import io.github.some_example_name.scene.Scene;
 import io.github.some_example_name.scene.SceneManager;
-import io.github.some_example_name.scene.SolidColorScene;
 
 /**
- * Prototype game demonstrating the abstract engine.
+ * Engine prototype demonstrating the abstract Entity/Component system.
  *
- * - Player (triangle) moves with WASD / arrow keys
- * - Circles are scattered randomly on screen
- * - Touching a circle collects it (disappears)
- * - Circles respawn after a few seconds
- * - TAB swaps scene background color via SceneManager
- * - Score is displayed on screen
+ * This is NOT a specific game — it showcases engine capabilities:
+ * - Entity creation/destruction at runtime
+ * - Component add/remove on the fly
+ * - Scene switching via SceneManager (with lifecycle hooks)
+ * - Debug overlay showing engine internals
+ * - Collision detection and handler notification
  */
 public class PrototypeEngine extends ApplicationAdapter {
 
@@ -39,150 +39,175 @@ public class PrototypeEngine extends ApplicationAdapter {
     private EngineCore engine;
     private EntityManager em;
     private MovementManager mm;
+    private CollisionManager cm;
+    private SceneManager sm;
 
     // ─── Rendering ───
     private ShapeRenderer shapeRenderer;
     private SpriteBatch batch;
     private BitmapFont font;
+    private BitmapFont fontSmall;
 
-    // ─── Game config ───
-    private static final int CIRCLE_COUNT = 10;
+    // ─── Config ───
     private static final float CIRCLE_SIZE = 20f;
     private static final float PLAYER_SIZE = 30f;
     private static final float PLAYER_SPEED = 250f;
     private static final float RESPAWN_DELAY = 3.0f;
 
-    // ─── Game state ───
+    // ─── State ───
     private Entity player;
     private CollectHandler collectHandler;
     private final Random rng = new Random();
     private float worldW, worldH;
 
-    // ─── Scene management ───
-    private SceneManager sceneManager;
-    private Scene defaultScene;
-    private Scene greenScene;
-    private Scene.Renderer sceneRenderer;
+    // ─── Debug overlay ───
+    private boolean debugMode = false;
+
+    // ─── Scenes ───
+    private StaticScene staticScene;
+    private MovingScene movingScene;
 
     @Override
     public void create() {
-        // ─── Init rendering ───
         shapeRenderer = new ShapeRenderer();
         batch = new SpriteBatch();
+
         font = new BitmapFont();
         font.setColor(Color.WHITE);
+
+        fontSmall = new BitmapFont();
+        fontSmall.setColor(Color.LIGHT_GRAY);
+        fontSmall.getData().setScale(0.85f);
 
         worldW = Gdx.graphics.getWidth();
         worldH = Gdx.graphics.getHeight();
 
-        // ─── Init engine (creates + wires all managers) ───
+        // ─── Init engine ───
         engine = new EngineCore();
         engine.init();
 
-        // Grab references for convenience
         em = engine.getEntityManager();
         mm = engine.getMovementManager();
-        sceneManager = engine.getSceneManager();
-        sceneRenderer = new GdxSceneRenderer();
+        cm = engine.getCollisionManager();
+        sm = engine.getSceneManager();
 
-        defaultScene = new SolidColorScene("DefaultBackground", 0.08f, 0.08f, 0.15f, 1f);
-        greenScene = new SolidColorScene("GreenBackground", 0.05f, 0.15f, 0.08f, 1f);
-        sceneManager.setScene(defaultScene);
-        sceneManager.queueScene(greenScene);
+        // ─── Create scenes ───
+        staticScene = new StaticScene(em, mm, worldW, worldH);
+        movingScene = new MovingScene(em, mm, worldW, worldH);
 
-        // ─── Create game entities ───
-        createPlayer();
-        createCircles();
+        // ─── Load first scene via SceneManager ───
+        loadScene(staticScene);
     }
 
-    // ─── Entity creation ───
+    // ═══════════════════════════════════════════
+    //  Scene Management (delegates to SceneManager)
+    // ═══════════════════════════════════════════
+
+    /**
+     * Clears all entities and switches to a new scene via SceneManager.
+     * SceneManager handles the lifecycle: exit old → load new → enter new.
+     */
+    private void loadScene(Scene scene) {
+        // Clear all entities and movement registrations
+        for (Entity e : em.getActiveEntities()) {
+            mm.unregister(e.getId());
+        }
+        em.clear();
+
+        // Player persists across scenes
+        createPlayer();
+
+        // SceneManager handles lifecycle (exit old scene → load new → enter new)
+        sm.setScene(scene);
+    }
+
+    // ═══════════════════════════════════════════
+    //  Entity Creation
+    // ═══════════════════════════════════════════
 
     private void createPlayer() {
         player = em.createEntity();
-
-        // Tag so systems can identify the player
         player.add(new PlayerTag());
 
-        // Visual data: green triangle
         Sprite sprite = new Sprite("triangle", PLAYER_SIZE, PLAYER_SIZE);
         sprite.setColor(0.2f, 0.9f, 0.3f, 1f);
         player.add(sprite);
 
-        // Collision box matching the sprite size
         player.add(new Collider(PLAYER_SIZE, PLAYER_SIZE, 0, 0, 0, false));
 
-     // Register collision callback (demo rule: player collects circles)
         collectHandler = new CollectHandler();
-        engine.getCollisionManager().setHandler(collectHandler);
+        player.add(collectHandler);
 
-        // Register movement at center of screen
         mm.register(player.getId(),
                 new Transform(worldW / 2f - PLAYER_SIZE / 2f, worldH / 2f - PLAYER_SIZE / 2f),
                 new Motion());
     }
 
-    private void createCircles() {
-        float margin = 40f;
-        for (int i = 0; i < CIRCLE_COUNT; i++) {
-            Entity circle = em.createEntity();
+    /**
+     * Spawns a circle entity. If moving=true, gives it random velocity.
+     * Demonstrates runtime entity creation with different component combos.
+     */
+    private void spawnCircle(boolean moving) {
+        Entity circle = em.createEntity();
 
-            // Random color for variety
-            float diameter = CIRCLE_SIZE * 2;
-            Sprite sprite = new Sprite("circle", diameter, diameter);
-            sprite.setColor(
-                    0.4f + rng.nextFloat() * 0.6f,
-                    0.4f + rng.nextFloat() * 0.6f,
-                    0.4f + rng.nextFloat() * 0.6f,
-                    1f
-            );
-            circle.add(sprite);
+        float diameter = CIRCLE_SIZE * 2;
+        Sprite sprite = new Sprite("circle", diameter, diameter);
+        sprite.setColor(
+                0.4f + rng.nextFloat() * 0.6f,
+                0.4f + rng.nextFloat() * 0.6f,
+                0.4f + rng.nextFloat() * 0.6f,
+                1f);
+        circle.add(sprite);
+        circle.add(new Collectible(RESPAWN_DELAY));
+        circle.add(new Collider(diameter, diameter, 0, 0, 0, false));
 
-            // Respawns after RESPAWN_DELAY seconds
-            circle.add(new Collectible(RESPAWN_DELAY));
+        float margin = 50f;
+        float x = margin + rng.nextFloat() * (worldW - diameter - margin * 2);
+        float y = margin + rng.nextFloat() * (worldH - diameter - margin * 2);
 
-            // Collision box
-            circle.add(new Collider(diameter, diameter, 0, 0, 0, false));
-
-            // Random position (with margin so circles aren't at edges)
-            float x = margin + rng.nextFloat() * (worldW - diameter - margin * 2);
-            float y = margin + rng.nextFloat() * (worldH - diameter - margin * 2);
-
-            // Static — circles don't move (velocity 0,0)
-            mm.register(circle.getId(), new Transform(x, y), new Motion());
+        float vx = 0f, vy = 0f;
+        if (moving) {
+            vx = -80f + rng.nextFloat() * 160f;
+            vy = -80f + rng.nextFloat() * 160f;
         }
+
+        mm.register(circle.getId(), new Transform(x, y), new Motion(vx, vy));
     }
 
-    // ─── Game loop ───
+    // ═══════════════════════════════════════════
+    //  Game Loop
+    // ═══════════════════════════════════════════
 
     @Override
     public void render() {
         float dt = Gdx.graphics.getDeltaTime();
         if (dt <= 0) return;
 
-        // 1. Handle input
-        handleInput();
-        handleSceneInput();
+        handleMovement();
+        handleEngineControls();
 
-        // 2. Engine update (movement → collision, in correct order)
         engine.update(dt);
 
-        // 3. Game-specific logic
         handleRespawns(dt);
         clampPlayerToScreen();
 
-        // 4. Draw
+        // Wrap circles if current scene is MovingScene
+        if (sm.getCurrentScene() == movingScene) {
+            wrapMovingCircles();
+        }
+
         draw();
     }
 
-    // ─── Input ───
+    // ═══════════════════════════════════════════
+    //  Input
+    // ═══════════════════════════════════════════
 
-    private void handleInput() {
+    private void handleMovement() {
         Motion pm = mm.getMotion(player.getId());
         if (pm == null) return;
 
-        float vx = 0f;
-        float vy = 0f;
-
+        float vx = 0f, vy = 0f;
         if (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.UP))    vy += PLAYER_SPEED;
         if (Gdx.input.isKeyPressed(Input.Keys.S) || Gdx.input.isKeyPressed(Input.Keys.DOWN))  vy -= PLAYER_SPEED;
         if (Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.LEFT))  vx -= PLAYER_SPEED;
@@ -192,18 +217,93 @@ public class PrototypeEngine extends ApplicationAdapter {
         pm.setVy(vy);
     }
 
-    private void handleSceneInput() {
-        if (!Gdx.input.isKeyJustPressed(Input.Keys.TAB)) {
-            return;
+    /**
+     * Runtime engine controls — demonstrates engine capabilities live.
+     */
+    private void handleEngineControls() {
+        // F1: Toggle debug overlay
+        if (Gdx.input.isKeyJustPressed(Input.Keys.F1)) {
+            debugMode = !debugMode;
         }
 
-        Scene currentScene = sceneManager.getCurrentScene();
-        Scene nextScene = (currentScene == greenScene) ? defaultScene : greenScene;
-        sceneManager.queueScene(nextScene);
-        sceneManager.switchScene();
+        // 1: Spawn new entity at runtime
+        if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) {
+            boolean moving = (sm.getCurrentScene() == movingScene);
+            spawnCircle(moving);
+        }
+
+        // 2: Destroy a random non-player entity
+        if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) {
+            destroyRandomCircle();
+        }
+
+        // 3: Toggle player's collider on/off
+        if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_3)) {
+            togglePlayerCollider();
+        }
+
+        // 4: Switch scene via SceneManager
+        if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_4)) {
+            Scene current = sm.getCurrentScene();
+            if (current == staticScene) {
+                loadScene(movingScene);
+            } else {
+                loadScene(staticScene);
+            }
+        }
+
+        // 5: Randomize all circle colors
+        if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_5)) {
+            randomizeColors();
+        }
     }
 
-    // ─── Respawn logic ───
+    // ═══════════════════════════════════════════
+    //  Engine Control Methods
+    // ═══════════════════════════════════════════
+
+    /** Removes a random circle — demonstrates runtime entity destruction. */
+    private void destroyRandomCircle() {
+        for (Entity e : em.getActiveEntities()) {
+            if (e.hasComponent(Collectible.class)) {
+                mm.unregister(e.getId());
+                em.destroyEntity(e.getId());
+                return;
+            }
+        }
+    }
+
+    /** Toggles player collider — demonstrates runtime component add/remove. */
+    private void togglePlayerCollider() {
+        if (player.hasComponent(Collider.class)) {
+            player.removeComponent("Collider");
+            Sprite s = player.getComponent(Sprite.class);
+            if (s != null) s.setColor(0.2f, 0.9f, 0.3f, 0.4f);
+        } else {
+            player.add(new Collider(PLAYER_SIZE, PLAYER_SIZE, 0, 0, 0, false));
+            Sprite s = player.getComponent(Sprite.class);
+            if (s != null) s.setColor(0.2f, 0.9f, 0.3f, 1f);
+        }
+    }
+
+    /** Randomizes all circle colors — demonstrates runtime component modification. */
+    private void randomizeColors() {
+        for (Entity e : em.getActiveEntities()) {
+            if (e.hasComponent(Collectible.class)) {
+                Sprite s = e.getComponent(Sprite.class);
+                if (s != null) {
+                    s.setColor(
+                            0.4f + rng.nextFloat() * 0.6f,
+                            0.4f + rng.nextFloat() * 0.6f,
+                            0.4f + rng.nextFloat() * 0.6f, 1f);
+                }
+            }
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  Respawn + Boundary Logic
+    // ═══════════════════════════════════════════
 
     private void handleRespawns(float dt) {
         for (Entity e : em.getActiveEntities()) {
@@ -214,55 +314,61 @@ public class PrototypeEngine extends ApplicationAdapter {
 
             if (col.isReadyToRespawn()) {
                 col.respawn();
-
-                // Show the circle again
                 Sprite sprite = e.getComponent(Sprite.class);
-                if (sprite != null) {
-                    sprite.setVisible(true);
-                }
+                if (sprite != null) sprite.setVisible(true);
 
-                // Randomize position on respawn
                 Transform t = mm.getTransform(e.getId());
                 if (t != null) {
-                    float margin = 40f;
+                    float margin = 50f;
                     float diameter = CIRCLE_SIZE * 2;
                     t.setPosition(
                             margin + rng.nextFloat() * (worldW - diameter - margin * 2),
-                            margin + rng.nextFloat() * (worldH - diameter - margin * 2)
-                    );
+                            margin + rng.nextFloat() * (worldH - diameter - margin * 2));
                 }
             }
         }
     }
 
-    // ─── Clamp player to screen bounds ───
-
     private void clampPlayerToScreen() {
         Transform t = mm.getTransform(player.getId());
         if (t == null) return;
-
         if (t.getX() < 0) t.setX(0);
         if (t.getY() < 0) t.setY(0);
         if (t.getX() + PLAYER_SIZE > worldW) t.setX(worldW - PLAYER_SIZE);
         if (t.getY() + PLAYER_SIZE > worldH) t.setY(worldH - PLAYER_SIZE);
     }
 
-    // ─── Rendering ───
+    /** Wraps moving circles around screen edges (MovingScene only). */
+    private void wrapMovingCircles() {
+        float diameter = CIRCLE_SIZE * 2;
+        for (Entity e : em.getActiveEntities()) {
+            if (!e.hasComponent(Collectible.class)) continue;
+            Transform t = mm.getTransform(e.getId());
+            if (t == null) continue;
+
+            if (t.getX() < -diameter) t.setX(worldW);
+            if (t.getX() > worldW) t.setX(-diameter);
+            if (t.getY() < -diameter) t.setY(worldH);
+            if (t.getY() > worldH) t.setY(-diameter);
+        }
+    }
+
+    // ═══════════════════════════════════════════
+    //  Rendering
+    // ═══════════════════════════════════════════
 
     private void draw() {
-        // Clear screen through scene abstraction.
-        Scene currentScene = sceneManager.getCurrentScene();
-        if (currentScene != null) {
-            currentScene.render(sceneRenderer);
-        } else {
-            Gdx.gl.glClearColor(0.08f, 0.08f, 0.15f, 1f);
-            Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        // ─── Let the current scene set the background color ───
+        Scene current = sm.getCurrentScene();
+        if (current != null) {
+            current.render((r, g, b, a) -> Gdx.gl.glClearColor(r, g, b, a));
         }
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        // Enable transparency
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
 
+        // ─── Draw entities ───
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
         for (Entity e : em.getActiveEntities()) {
@@ -272,61 +378,103 @@ public class PrototypeEngine extends ApplicationAdapter {
             Transform t = mm.getTransform(e.getId());
             if (t == null) continue;
 
-            float x = t.getX();
-            float y = t.getY();
-
             shapeRenderer.setColor(sprite.getR(), sprite.getG(), sprite.getB(), sprite.getA());
 
             if (e.hasComponent(PlayerTag.class)) {
-                // Draw triangle for player
-                drawTriangle(x, y, sprite.getWidth(), sprite.getHeight());
+                drawTriangle(t.getX(), t.getY(), sprite.getWidth(), sprite.getHeight());
             } else {
-                // Draw circle for collectibles
-                float radius = sprite.getWidth() / 2f;
-                shapeRenderer.circle(x + radius, y + radius, radius, 32);
+                float r = sprite.getWidth() / 2f;
+                shapeRenderer.circle(t.getX() + r, t.getY() + r, r, 32);
             }
         }
 
         shapeRenderer.end();
 
-        // Draw UI text (score)
-        batch.begin();
-        font.draw(batch, "Score: " + collectHandler.getScore(), 10, worldH - 10);
-        font.draw(batch, "WASD to move | Collect all circles!", 10, worldH - 30);
+        // ─── Debug: collider outlines ───
+        if (debugMode) {
+            shapeRenderer.begin(ShapeRenderer.ShapeType.Line);
+            shapeRenderer.setColor(1f, 0f, 0f, 0.7f);
 
-        // Show respawn hint if any circles are collected
+            for (Entity e : em.getActiveEntities()) {
+                Collider col = e.getComponent(Collider.class);
+                Transform t = mm.getTransform(e.getId());
+                if (col == null || t == null) continue;
+
+                shapeRenderer.rect(
+                        t.getX() + col.getOffsetX(),
+                        t.getY() + col.getOffsetY(),
+                        col.getWidth(), col.getHeight());
+            }
+
+            shapeRenderer.end();
+        }
+
+        // ─── Text overlay ───
+        batch.begin();
+
+        // Engine header
+        font.draw(batch, "Engine Prototype - Entity/Component System Demo", 10, worldH - 10);
+        fontSmall.draw(batch,
+                "[WASD] Move  [1] Spawn  [2] Destroy  [3] Toggle Collider  [4] Switch Scene  [5] Recolor  [F1] Debug",
+                10, worldH - 30);
+
+        // Status line — uses SceneManager for scene name
+        String sceneName = (current != null) ? current.getSceneName() : "None";
+        boolean hasCollider = player.hasComponent(Collider.class);
+        fontSmall.draw(batch,
+                sceneName + "  |  Collected: " + collectHandler.getScore()
+                        + "  |  Collider: " + (hasCollider ? "ON" : "OFF"),
+                10, worldH - 48);
+
+        // Respawn info
         int hidden = countCollected();
         if (hidden > 0) {
-            font.draw(batch, hidden + " circle(s) respawning...", 10, worldH - 50);
+            fontSmall.draw(batch, hidden + " entity(s) respawning...", 10, worldH - 64);
         }
+
+        // ─── Debug panel ───
+        if (debugMode) {
+            float dx = worldW - 260;
+            float dy = worldH - 10;
+
+            font.draw(batch, "[ DEBUG ]", dx, dy); dy -= 20;
+
+            fontSmall.draw(batch, "Active Entities: " + em.getActiveEntities().size(), dx, dy); dy -= 16;
+            fontSmall.draw(batch, "Player ID: " + player.getId(), dx, dy); dy -= 16;
+
+            int sprites = 0, colliders = 0, collectibles = 0;
+            for (Entity e : em.getActiveEntities()) {
+                if (e.hasComponent(Sprite.class)) sprites++;
+                if (e.hasComponent(Collider.class)) colliders++;
+                if (e.hasComponent(Collectible.class)) collectibles++;
+            }
+            fontSmall.draw(batch, "Sprites: " + sprites + "  Colliders: " + colliders, dx, dy); dy -= 16;
+            fontSmall.draw(batch, "Collectibles: " + collectibles, dx, dy); dy -= 16;
+            fontSmall.draw(batch, "Scene: " + sceneName, dx, dy); dy -= 16;
+            fontSmall.draw(batch, "FPS: " + Gdx.graphics.getFramesPerSecond(), dx, dy); dy -= 16;
+
+            StringBuilder ids = new StringBuilder("IDs: ");
+            for (Entity e : em.getActiveEntities()) {
+                ids.append(e.getId()).append(" ");
+            }
+            fontSmall.draw(batch, ids.toString(), dx, dy);
+        }
+
         batch.end();
     }
 
-    /**
-     * Draws an upward-pointing triangle.
-     */
     private void drawTriangle(float x, float y, float w, float h) {
-        shapeRenderer.triangle(
-                x, y,               // bottom-left
-                x + w, y,           // bottom-right
-                x + w / 2f, y + h   // top-center
-        );
+        shapeRenderer.triangle(x, y, x + w, y, x + w / 2f, y + h);
     }
-
-    // ─── Utility ───
 
     private int countCollected() {
         int count = 0;
         for (Entity e : em.getActiveEntities()) {
             Collectible col = e.getComponent(Collectible.class);
-            if (col != null && col.isCollected()) {
-                count++;
-            }
+            if (col != null && col.isCollected()) count++;
         }
         return count;
     }
-
-    // ─── Cleanup ───
 
     @Override
     public void dispose() {
@@ -334,13 +482,6 @@ public class PrototypeEngine extends ApplicationAdapter {
         if (shapeRenderer != null) shapeRenderer.dispose();
         if (batch != null) batch.dispose();
         if (font != null) font.dispose();
-    }
-
-    private static class GdxSceneRenderer implements Scene.Renderer {
-        @Override
-        public void clear(float r, float g, float b, float a) {
-            Gdx.gl.glClearColor(r, g, b, a);
-            Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-        }
+        if (fontSmall != null) fontSmall.dispose();
     }
 }
