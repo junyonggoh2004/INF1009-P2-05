@@ -20,8 +20,10 @@ import io.github.some_example_name.entity.Sprite;
 import io.github.some_example_name.movement.Motion;
 import io.github.some_example_name.movement.MovementManager;
 import io.github.some_example_name.movement.Transform;
+import io.github.some_example_name.scene.MovingScene;
 import io.github.some_example_name.scene.Scene;
 import io.github.some_example_name.scene.SceneManager;
+import io.github.some_example_name.scene.StaticScene;
 
 /**
  * Engine prototype demonstrating the abstract Entity/Component system.
@@ -47,6 +49,7 @@ public class PrototypeEngine extends ApplicationAdapter {
     private SpriteBatch batch;
     private BitmapFont font;
     private BitmapFont fontSmall;
+    private Scene.Renderer sceneRenderer;
 
     // ─── Config ───
     private static final float CIRCLE_SIZE = 20f;
@@ -90,10 +93,14 @@ public class PrototypeEngine extends ApplicationAdapter {
         mm = engine.getMovementManager();
         cm = engine.getCollisionManager();
         sm = engine.getSceneManager();
+        sceneRenderer = new GdxSceneRenderer();
 
         // ─── Create scenes ───
         staticScene = new StaticScene(em, mm, worldW, worldH);
         movingScene = new MovingScene(em, mm, worldW, worldH);
+
+        // Player persists and is not scene-owned.
+        createPlayer();
 
         // ─── Load first scene via SceneManager ───
         loadScene(staticScene);
@@ -104,20 +111,11 @@ public class PrototypeEngine extends ApplicationAdapter {
     // ═══════════════════════════════════════════
 
     /**
-     * Clears all entities and switches to a new scene via SceneManager.
-     * SceneManager handles the lifecycle: exit old → load new → enter new.
+     * Switches to a new scene via SceneManager.
+     * SceneManager handles lifecycle: exit old -> unload old -> load new -> enter new.
      */
     private void loadScene(Scene scene) {
-        // Clear all entities and movement registrations
-        for (Entity e : em.getActiveEntities()) {
-            mm.unregister(e.getId());
-        }
-        em.clear();
-
-        // Player persists across scenes
-        createPlayer();
-
-        // SceneManager handles lifecycle (exit old scene → load new → enter new)
+        // SceneManager handles lifecycle hooks for scene-owned entities.
         sm.setScene(scene);
     }
 
@@ -143,37 +141,6 @@ public class PrototypeEngine extends ApplicationAdapter {
                 new Motion());
     }
 
-    /**
-     * Spawns a circle entity. If moving=true, gives it random velocity.
-     * Demonstrates runtime entity creation with different component combos.
-     */
-    private void spawnCircle(boolean moving) {
-        Entity circle = em.createEntity();
-
-        float diameter = CIRCLE_SIZE * 2;
-        Sprite sprite = new Sprite("circle", diameter, diameter);
-        sprite.setColor(
-                0.4f + rng.nextFloat() * 0.6f,
-                0.4f + rng.nextFloat() * 0.6f,
-                0.4f + rng.nextFloat() * 0.6f,
-                1f);
-        circle.add(sprite);
-        circle.add(new Collectible(RESPAWN_DELAY));
-        circle.add(new Collider(diameter, diameter, 0, 0, 0, false));
-
-        float margin = 50f;
-        float x = margin + rng.nextFloat() * (worldW - diameter - margin * 2);
-        float y = margin + rng.nextFloat() * (worldH - diameter - margin * 2);
-
-        float vx = 0f, vy = 0f;
-        if (moving) {
-            vx = -80f + rng.nextFloat() * 160f;
-            vy = -80f + rng.nextFloat() * 160f;
-        }
-
-        mm.register(circle.getId(), new Transform(x, y), new Motion(vx, vy));
-    }
-
     // ═══════════════════════════════════════════
     //  Game Loop
     // ═══════════════════════════════════════════
@@ -190,11 +157,6 @@ public class PrototypeEngine extends ApplicationAdapter {
 
         handleRespawns(dt);
         clampPlayerToScreen();
-
-        // Wrap circles if current scene is MovingScene
-        if (sm.getCurrentScene() == movingScene) {
-            wrapMovingCircles();
-        }
 
         draw();
     }
@@ -228,8 +190,12 @@ public class PrototypeEngine extends ApplicationAdapter {
 
         // 1: Spawn new entity at runtime
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) {
-            boolean moving = (sm.getCurrentScene() == movingScene);
-            spawnCircle(moving);
+            Scene current = sm.getCurrentScene();
+            if (current == movingScene) {
+                movingScene.spawnCircle();
+            } else if (current == staticScene) {
+                staticScene.spawnCircle();
+            }
         }
 
         // 2: Destroy a random non-player entity
@@ -338,21 +304,6 @@ public class PrototypeEngine extends ApplicationAdapter {
         if (t.getY() + PLAYER_SIZE > worldH) t.setY(worldH - PLAYER_SIZE);
     }
 
-    /** Wraps moving circles around screen edges (MovingScene only). */
-    private void wrapMovingCircles() {
-        float diameter = CIRCLE_SIZE * 2;
-        for (Entity e : em.getActiveEntities()) {
-            if (!e.hasComponent(Collectible.class)) continue;
-            Transform t = mm.getTransform(e.getId());
-            if (t == null) continue;
-
-            if (t.getX() < -diameter) t.setX(worldW);
-            if (t.getX() > worldW) t.setX(-diameter);
-            if (t.getY() < -diameter) t.setY(worldH);
-            if (t.getY() > worldH) t.setY(-diameter);
-        }
-    }
-
     // ═══════════════════════════════════════════
     //  Rendering
     // ═══════════════════════════════════════════
@@ -361,9 +312,10 @@ public class PrototypeEngine extends ApplicationAdapter {
         // ─── Let the current scene set the background color ───
         Scene current = sm.getCurrentScene();
         if (current != null) {
-            current.render((r, g, b, a) -> Gdx.gl.glClearColor(r, g, b, a));
+            current.render(sceneRenderer);
+        } else {
+            sceneRenderer.clear(0.08f, 0.08f, 0.15f, 1f);
         }
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
@@ -474,6 +426,14 @@ public class PrototypeEngine extends ApplicationAdapter {
             if (col != null && col.isCollected()) count++;
         }
         return count;
+    }
+
+    private static class GdxSceneRenderer implements Scene.Renderer {
+        @Override
+        public void clear(float r, float g, float b, float a) {
+            Gdx.gl.glClearColor(r, g, b, a);
+            Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+        }
     }
 
     @Override

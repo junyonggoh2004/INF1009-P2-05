@@ -49,17 +49,17 @@ public class EngineCore {
         // 1. Process input/output
         ioManager.update(dt);
 
-        // 2. Update current scene logic
-        sceneManager.update(dt);
-
-        // 3. Entity-level updates (currently a hook)
+        // 2. Entity-level updates (currently a hook)
         entityManager.updateAll(dt);
 
-        // 4. Apply movement / physics
+        // 3. Apply movement / physics
         movementManager.update(dt, entityManager);
 
-        // 5. Detect and resolve collisions
+        // 4. Detect and resolve collisions
         collisionManager.update(dt, entityManager);
+
+        // 5. Scene-specific per-frame logic (e.g., boundary policies)
+        sceneManager.update(dt);
     }
 
     /**
