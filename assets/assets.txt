@@ -1,3 +1,6 @@
+BGM_1-Trimmed.mp3
+BGM_1.mp3
+BGM_2.mp3
 Bubble-Click.ogg
 Krayzius & Brainstorm - Virtual Boy.mp3
 SGD.png

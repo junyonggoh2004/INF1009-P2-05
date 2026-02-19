@@ -3,6 +3,7 @@ package io.github.some_example_name.prototype;
 import io.github.some_example_name.collision.CollisionHandler;
 import io.github.some_example_name.entity.Entity;
 import io.github.some_example_name.entity.Sprite;
+import io.github.some_example_name.inputoutput.output.AudioManager;
 
 /**
  * Global collision callback.
@@ -14,9 +15,11 @@ import io.github.some_example_name.entity.Sprite;
 public class CollectHandler implements CollisionHandler {
 
     private int score;
+    private AudioManager audioManager;
 
-    public CollectHandler() {
+    public CollectHandler(AudioManager audioManager) {
         this.score = 0;
+        this.audioManager = audioManager;
     }
 
     @Override
@@ -42,6 +45,11 @@ public class CollectHandler implements CollisionHandler {
 
         score++;
         System.out.println("Collected! Score: " + score);
+
+        // Trigger sound effect
+        if (audioManager != null) {
+            audioManager.playAudio("bubble_click");
+        }
     }
     
     public int getScore() {

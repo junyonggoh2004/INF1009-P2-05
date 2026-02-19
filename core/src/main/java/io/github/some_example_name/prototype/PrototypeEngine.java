@@ -24,6 +24,9 @@ import io.github.some_example_name.scene.MovingScene;
 import io.github.some_example_name.scene.Scene;
 import io.github.some_example_name.scene.SceneManager;
 import io.github.some_example_name.scene.StaticScene;
+import io.github.some_example_name.inputoutput.output.AudioManager;
+import io.github.some_example_name.inputoutput.output.GameAudio;
+import io.github.some_example_name.inputoutput.output.MusicTrack;
 
 /**
  * Engine prototype demonstrating the abstract Entity/Component system.
@@ -89,6 +92,32 @@ public class PrototypeEngine extends ApplicationAdapter {
         engine = new EngineCore();
         engine.init();
 
+        // Load Sound Effects
+        AudioManager am = engine.getIOManager().output().getAudioManager();
+        am.loadSound("bubble_click", "Bubble-Click.ogg");
+
+        // Load Background Music
+        am.loadMusic("bgm_1", "BGM_1.mp3");
+        am.loadMusic("bgm_2", "BGM_2.mp3");
+
+        // Setup Scene 1 Music (Volume and Looping)
+        GameAudio track1 = am.getAudio("bgm_1");
+        if (track1 != null) {
+            track1.setVolume(0.2f);
+            if (track1 instanceof MusicTrack) {
+                ((MusicTrack) track1).setLooping(true);
+            }
+        }
+
+        // Setup Scene 2 Music (Volume and Looping)
+        GameAudio track2 = am.getAudio("bgm_2");
+        if (track2 != null) {
+            track2.setVolume(0.2f);
+            if (track2 instanceof MusicTrack) {
+                ((MusicTrack) track2).setLooping(true);
+            }
+        }
+
         em = engine.getEntityManager();
         mm = engine.getMovementManager();
         cm = engine.getCollisionManager();
@@ -104,6 +133,8 @@ public class PrototypeEngine extends ApplicationAdapter {
 
         // ─── Load first scene via SceneManager ───
         loadScene(staticScene);
+        // Play BGM_1
+        am.playAudio("bgm_1");
     }
 
     // ═══════════════════════════════════════════
@@ -133,7 +164,8 @@ public class PrototypeEngine extends ApplicationAdapter {
 
         player.add(new Collider(PLAYER_SIZE, PLAYER_SIZE, 0, 0, 0, false));
 
-        collectHandler = new CollectHandler();
+        AudioManager am = engine.getIOManager().output().getAudioManager();
+        collectHandler = new CollectHandler(am);
         player.add(collectHandler);
 
         mm.register(player.getId(),
@@ -211,10 +243,13 @@ public class PrototypeEngine extends ApplicationAdapter {
         // 4: Switch scene via SceneManager
         if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_4)) {
             Scene current = sm.getCurrentScene();
+            AudioManager am = engine.getIOManager().output().getAudioManager();
             if (current == staticScene) {
                 loadScene(movingScene);
+                am.playAudio("bgm_2"); // Switch to Scene 2 Music
             } else {
                 loadScene(staticScene);
+                am.playAudio("bgm_1"); // Switch to Scene 1 Music
             }
         }
 
