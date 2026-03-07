@@ -3,7 +3,6 @@ package io.github.some_example_name.healthyeating;
 import io.github.some_example_name.collision.CollisionHandler;
 import io.github.some_example_name.entity.Entity;
 import io.github.some_example_name.entity.Sprite;
-import io.github.some_example_name.healthyeating.FoodTag.FoodType;
 
 /**
  * Collision handler attached to the player entity.
