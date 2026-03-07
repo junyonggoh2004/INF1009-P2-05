@@ -150,7 +150,7 @@ public class HealthyEatingGame extends ApplicationAdapter {
         stage1Bg = new Texture(Gdx.files.internal("backgrounds/child_stage.jpg"));
         stage2Bg = new Texture(Gdx.files.internal("backgrounds/teen_stage.png"));
         stage3Bg = new Texture(Gdx.files.internal("backgrounds/adult_stage.png"));
-        endBg = new Texture(Gdx.files.internal("game_over.png"));
+        endBg = new Texture(Gdx.files.internal("backgrounds/game_over.png"));
 
         // User guide textures
         guideTexture1 = new Texture(Gdx.files.internal("backgrounds/user_guide1.png"));
