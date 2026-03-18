@@ -6,8 +6,8 @@ package io.github.some_example_name.movement;
  */
 public class PhysicsCalculation {
 
-	// gravity acceleration (pixels/sec^2). Flip sign if your Y-axis is up.
-    private static final float GRAVITY = 980f;
+	// gravity acceleration (pixels/sec^2). Negative because libGDX Y-axis points up.
+    private static final float GRAVITY = -980f;
 
     // Physics Calculation 1: Acceleration → Velocity
     // Using: v_new = v_old + a * dt

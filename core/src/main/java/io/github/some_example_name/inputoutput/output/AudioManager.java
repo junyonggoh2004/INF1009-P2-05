@@ -46,17 +46,14 @@ public class AudioManager {
         GameAudio audio = audioLibrary.get(id);
 
         if (audio != null) {
-            // LOGIC: Check if this audio is actually Music
-            if (audio instanceof MusicTrack) {
-                // If music is already playing, stop it first.
+            // If this is a music track, stop the previous one first
+            if (audio.isMusic()) {
                 if (currentMusic != null) {
                     currentMusic.stop();
                 }
-                // Remember this new track as the current music
                 currentMusic = audio;
             }
 
-            // We call .play(), and the specific object (Music or Sound) does its own job.
             audio.play();
         } else {
             System.out.println("[AudioManager] Error: Audio ID '" + id + "' not found!");

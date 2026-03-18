@@ -1,11 +1,12 @@
 package io.github.some_example_name.movement;
 
+import io.github.some_example_name.entity.Component;
+
 /**
  * Stores spatial data for an entity.
  * Position and rotation are updated by systems such as MovementManager.
  */
-
-public class Transform {
+public class Transform implements Component {
 
     // World position (in units, e.g. pixels or meters)
     private float x;

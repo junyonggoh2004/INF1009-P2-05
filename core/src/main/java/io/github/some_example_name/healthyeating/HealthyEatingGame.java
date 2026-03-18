@@ -3,8 +3,6 @@ package io.github.some_example_name.healthyeating;
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.audio.Music;
-import com.badlogic.gdx.audio.Sound;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
@@ -14,14 +12,13 @@ import java.util.Map;
 import io.github.some_example_name.core.EngineCore;
 import io.github.some_example_name.entity.Entity;
 import io.github.some_example_name.entity.EntityManager;
-import io.github.some_example_name.factory.FoodEntityFactory;
-import io.github.some_example_name.factory.PlayerEntityFactory;
-import io.github.some_example_name.factory.StageContentFactory;
-import io.github.some_example_name.factory.StageFactoryRegistry;
+import io.github.some_example_name.inputoutput.input.InputHandler;
+import io.github.some_example_name.inputoutput.output.AudioManager;
+import io.github.some_example_name.healthyeating.factory.FoodEntityFactory;
+import io.github.some_example_name.healthyeating.factory.PlayerEntityFactory;
+import io.github.some_example_name.healthyeating.factory.StageContentFactory;
+import io.github.some_example_name.healthyeating.factory.StageFactoryRegistry;
 import io.github.some_example_name.movement.MovementManager;
-import io.github.some_example_name.scene.EndScene;
-import io.github.some_example_name.scene.FoodStageScene;
-import io.github.some_example_name.scene.MenuScene;
 import io.github.some_example_name.scene.Scene;
 import io.github.some_example_name.scene.SceneManager;
 import io.github.some_example_name.healthyeating.PlayerTag.Stage;
@@ -42,19 +39,15 @@ public class HealthyEatingGame extends ApplicationAdapter {
     // Managers
     private GameRenderer renderer;
     private GameStateManager stateManager;
-    private GameInputHandler inputHandler;
+    private GameInputHandler gameInput;
     private GameWorldManager worldManager;
+    private InputHandler engineInput;
+    private AudioManager audioManager;
 
     // Factories
     private PlayerEntityFactory playerFactory;
     private FoodEntityFactory foodFactory;
     private StageFactoryRegistry stageRegistry;
-
-    // Audio
-    private Music bgm;
-    private Sound sfxBite;
-    private Sound sfxSlurp;
-    private Sound sfxBubble;
 
     // Buttons
     private Button singlePlayerBtn, multiPlayerBtn, guideBtn, exitBtn;
@@ -82,7 +75,7 @@ public class HealthyEatingGame extends ApplicationAdapter {
         foodFactory = new FoodEntityFactory();
         stageRegistry = new StageFactoryRegistry();
 
-        // Build stage scenes from registry (Abstract Factory → reusable scene)
+        // Build stage scenes from registry (Abstract Factory -> reusable scene)
         stageScenes = new EnumMap<>(Stage.class);
         for (StageContentFactory factory : stageRegistry.all()) {
             Stage stage = factory.getProfile().getStage();
@@ -94,21 +87,28 @@ public class HealthyEatingGame extends ApplicationAdapter {
         endScene  = new EndScene();
         sm.setScene(menuScene);
 
+        // Input: bind game actions to the engine's input system
+        engineInput = engine.getIOManager().input();
+        GameInputHandler.bindActions(engineInput);
+
+        // Audio: load through engine's AudioManager
+        audioManager = engine.getIOManager().output().getAudioManager();
+        audioManager.loadMusic("bgm", FoodAssets.BGM_1);
+        audioManager.loadSound(GameStateManager.SFX_BITE, FoodAssets.SFX_BITE);
+        audioManager.loadSound(GameStateManager.SFX_SLURP, FoodAssets.SFX_SLURP);
+        audioManager.loadSound(GameStateManager.SFX_BUBBLE, FoodAssets.SFX_BUBBLE);
+
+        // Start background music
+        audioManager.getAudio("bgm").setVolume(0.4f);
+        audioManager.getAudio("bgm").setLooping(true);
+        audioManager.playAudio("bgm");
+
         // Managers
         renderer = new GameRenderer(menuScene, endScene, stageScenes);
-        inputHandler = new GameInputHandler();
+        gameInput = new GameInputHandler();
         worldManager = new GameWorldManager();
         stateManager = new GameStateManager(sm, em, mm, playerFactory, stageRegistry,
-                renderer, menuScene, endScene, stageScenes);
-
-        // Audio
-        bgm       = Gdx.audio.newMusic(Gdx.files.internal(FoodAssets.BGM_1));
-        sfxBite   = Gdx.audio.newSound(Gdx.files.internal(FoodAssets.SFX_BITE));
-        sfxSlurp  = Gdx.audio.newSound(Gdx.files.internal(FoodAssets.SFX_SLURP));
-        sfxBubble = Gdx.audio.newSound(Gdx.files.internal(FoodAssets.SFX_BUBBLE));
-        bgm.setLooping(true);
-        bgm.setVolume(0.4f);
-        bgm.play();
+                renderer, audioManager, menuScene, endScene, stageScenes);
 
         // Menu buttons — centered vertically below the title
         float menuBtnW = 200f;
@@ -221,7 +221,7 @@ public class HealthyEatingGame extends ApplicationAdapter {
 
         // Gameplay
         updatePlayerExpressions(dt);
-        inputHandler.handleMovement(stateManager.getPlayer1(), stateManager.getPlayer2(), mm);
+        gameInput.handleMovement(stateManager.getPlayer1(), stateManager.getPlayer2(), mm, engineInput);
         engine.update(dt);
 
         worldManager.handleRespawns(dt, em, mm, worldW, worldH);
@@ -229,7 +229,7 @@ public class HealthyEatingGame extends ApplicationAdapter {
         worldManager.clampPlayerToScreen(stateManager.getPlayer2(), mm, worldW, worldH);
         worldManager.wrapFood(em, mm, worldW, worldH);
 
-        stateManager.checkGameState(sfxBite, sfxSlurp, sfxBubble);
+        stateManager.checkGameState();
         renderer.updateFlash(dt);
         renderer.drawGameplay(current, em, mm, stateManager.getPlayer1(), stateManager.getPlayer2());
     }
@@ -256,9 +256,5 @@ public class HealthyEatingGame extends ApplicationAdapter {
     public void dispose() {
         if (engine != null) engine.dispose();
         if (renderer != null) renderer.dispose();
-        if (bgm != null) bgm.dispose();
-        if (sfxBite != null) sfxBite.dispose();
-        if (sfxSlurp != null) sfxSlurp.dispose();
-        if (sfxBubble != null) sfxBubble.dispose();
     }
 }

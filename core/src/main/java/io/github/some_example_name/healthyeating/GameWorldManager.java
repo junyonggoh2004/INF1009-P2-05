@@ -5,6 +5,7 @@ import java.util.Random;
 import io.github.some_example_name.entity.Entity;
 import io.github.some_example_name.entity.EntityManager;
 import io.github.some_example_name.entity.Sprite;
+import io.github.some_example_name.healthyeating.factory.PlayerEntityFactory;
 import io.github.some_example_name.movement.MovementManager;
 import io.github.some_example_name.movement.Transform;
 
@@ -13,6 +14,7 @@ import io.github.some_example_name.movement.Transform;
  */
 public class GameWorldManager {
 
+    private static final float SPAWN_MARGIN = 60f;
     private final Random rng = new Random();
 
     /** Ticks food timers and respawns collected food at random positions. */
@@ -31,11 +33,10 @@ public class GameWorldManager {
 
                 Transform t = mm.getTransform(e.getId());
                 if (t != null) {
-                    float margin = 60f;
-                    float size = 40f;
+                    float size = (sprite != null) ? sprite.getWidth() : 35f;
                     t.setPosition(
-                        margin + rng.nextFloat() * (worldW - size - margin * 2),
-                        margin + rng.nextFloat() * (worldH - size - margin * 2));
+                        SPAWN_MARGIN + rng.nextFloat() * (worldW - size - SPAWN_MARGIN * 2),
+                        SPAWN_MARGIN + rng.nextFloat() * (worldH - size - SPAWN_MARGIN * 2));
                 }
             }
         }
@@ -47,7 +48,7 @@ public class GameWorldManager {
         if (player == null) return;
         Transform t = mm.getTransform(player.getId());
         if (t == null) return;
-        float size = io.github.some_example_name.factory.PlayerEntityFactory.PLAYER_SIZE;
+        float size = PlayerEntityFactory.PLAYER_SIZE;
         if (t.getX() < 0) t.setX(0);
         if (t.getY() < 0) t.setY(0);
         if (t.getX() + size > worldW) t.setX(worldW - size);
@@ -57,9 +58,10 @@ public class GameWorldManager {
     /** Wraps food entities around screen edges. */
     public void wrapFood(EntityManager em, MovementManager mm,
                          float worldW, float worldH) {
-        float size = 40f;
         for (Entity e : em.getActiveEntities()) {
             if (!e.hasComponent(FoodTag.class)) continue;
+            Sprite sprite = e.getComponent(Sprite.class);
+            float size = (sprite != null) ? sprite.getWidth() : 35f;
             Transform t = mm.getTransform(e.getId());
             if (t == null) continue;
 

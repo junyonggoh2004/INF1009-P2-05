@@ -1,11 +1,12 @@
 package io.github.some_example_name.movement;
 
+import io.github.some_example_name.entity.Component;
+
 /**
  * Represents movement-related properties of an entity.
  * Used by MovementManager to update Transform.
  */
-
-public class Motion {
+public class Motion implements Component {
 
     // Velocity components
     private float vx;

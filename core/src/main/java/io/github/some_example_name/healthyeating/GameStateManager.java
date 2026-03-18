@@ -2,19 +2,16 @@ package io.github.some_example_name.healthyeating;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
-import com.badlogic.gdx.audio.Sound;
 
 import io.github.some_example_name.entity.Entity;
 import io.github.some_example_name.entity.EntityManager;
-import io.github.some_example_name.factory.PlayerEntityFactory;
-import io.github.some_example_name.factory.StageContentFactory;
-import io.github.some_example_name.factory.StageFactoryRegistry;
-import io.github.some_example_name.factory.StageProfile;
+import io.github.some_example_name.healthyeating.factory.PlayerEntityFactory;
+import io.github.some_example_name.healthyeating.factory.StageContentFactory;
+import io.github.some_example_name.healthyeating.factory.StageFactoryRegistry;
+import io.github.some_example_name.healthyeating.factory.StageProfile;
+import io.github.some_example_name.inputoutput.output.AudioManager;
 import io.github.some_example_name.movement.MovementManager;
 import io.github.some_example_name.movement.Transform;
-import io.github.some_example_name.scene.EndScene;
-import io.github.some_example_name.scene.FoodStageScene;
-import io.github.some_example_name.scene.MenuScene;
 import io.github.some_example_name.scene.SceneManager;
 import io.github.some_example_name.healthyeating.PlayerTag.Stage;
 
@@ -22,9 +19,15 @@ import java.util.Map;
 
 /**
  * Manages game state, scene transitions, guide state, and transition overlays.
- * Uses StageFactoryRegistry for stage lookups instead of hardcoded stage logic.
+ * Uses StageFactoryRegistry for data-driven stage progression.
+ * Uses engine's AudioManager for all sound playback.
  */
 public class GameStateManager {
+
+    // Audio IDs (registered with engine AudioManager)
+    public static final String SFX_BITE   = "bite";
+    public static final String SFX_SLURP  = "slurp";
+    public static final String SFX_BUBBLE = "bubble";
 
     private static final float TRANSITION_DURATION = 3.0f;
 
@@ -42,6 +45,7 @@ public class GameStateManager {
     // Engine references
     private final EntityManager em;
     private final MovementManager mm;
+    private final AudioManager audioManager;
 
     // Players
     private Entity player1;
@@ -59,7 +63,8 @@ public class GameStateManager {
 
     public GameStateManager(SceneManager sm, EntityManager em, MovementManager mm,
                             PlayerEntityFactory playerFactory, StageFactoryRegistry stageRegistry,
-                            GameRenderer renderer, MenuScene menuScene, EndScene endScene,
+                            GameRenderer renderer, AudioManager audioManager,
+                            MenuScene menuScene, EndScene endScene,
                             Map<Stage, FoodStageScene> stageScenes) {
         this.sm = sm;
         this.em = em;
@@ -67,6 +72,7 @@ public class GameStateManager {
         this.playerFactory = playerFactory;
         this.stageRegistry = stageRegistry;
         this.renderer = renderer;
+        this.audioManager = audioManager;
         this.menuScene = menuScene;
         this.endScene = endScene;
         this.stageScenes = stageScenes;
@@ -94,28 +100,31 @@ public class GameStateManager {
 
     public boolean isMultiplayer() { return multiplayer; }
 
-    /** Advances to the next stage based on the given target stage. */
-    private void advanceToStage(Stage targetStage, String message, Sound sfxBubble) {
+    private void advanceToNextStage() {
+        if (player1 == null) return;
+        PlayerTag tag = player1.getComponent(PlayerTag.class);
+        if (tag == null) return;
+
+        StageProfile currentProfile = stageRegistry.get(tag.getCurrentStage()).getProfile();
+        Stage nextStage = currentProfile.getNextStage();
+
+        if (nextStage == null) {
+            triggerVictory();
+            return;
+        }
+
         playerFactory.clearFoodEntities(em, mm);
 
-        StageProfile profile = stageRegistry.get(targetStage).getProfile();
-        updatePlayersForStage(targetStage, profile.getScoreThreshold());
+        StageProfile nextProfile = stageRegistry.get(nextStage).getProfile();
+        updatePlayersForStage(nextStage, nextProfile.getScoreThreshold());
         resetPlayerPositions();
 
-        transitionMessage = message;
+        transitionMessage = currentProfile.getTransitionMessage();
         showingTransition = true;
         transitionTimer = TRANSITION_DURATION;
 
-        sm.setScene(stageScenes.get(targetStage));
-        sfxBubble.play();
-    }
-
-    public void advanceToStage2(Sound sfxBubble) {
-        advanceToStage(Stage.TEEN, "You grew up to a Teen!", sfxBubble);
-    }
-
-    public void advanceToStage3(Sound sfxBubble) {
-        advanceToStage(Stage.ADULT, "You grew up to an Adult!", sfxBubble);
+        sm.setScene(stageScenes.get(nextStage));
+        audioManager.playAudio(SFX_BUBBLE);
     }
 
     private void resetPlayerPositions() {
@@ -156,10 +165,10 @@ public class GameStateManager {
         if (handler != null) handler.clearLevelUp();
     }
 
-    public void triggerVictory(Sound sfxBubble) {
+    public void triggerVictory() {
         endScene.setVictory(true);
         sm.setScene(endScene);
-        sfxBubble.play();
+        audioManager.playAudio(SFX_BUBBLE);
     }
 
     public void triggerGameOver() {
@@ -176,7 +185,7 @@ public class GameStateManager {
 
     // ─── Game State Checks ───
 
-    public void checkGameState(Sound sfxBite, Sound sfxSlurp, Sound sfxBubble) {
+    public void checkGameState() {
         FoodCollectHandler handler1 = getHandler(player1);
         FoodCollectHandler handler2 = getHandler(player2);
 
@@ -188,46 +197,39 @@ public class GameStateManager {
             return;
         }
 
-        checkHandlerSounds(handler1, sfxBite, sfxSlurp, sfxBubble);
-        checkHandlerSounds(handler2, sfxBite, sfxSlurp, sfxBubble);
+        checkHandlerEffects(handler1);
+        checkHandlerEffects(handler2);
 
         boolean levelUp = (handler1 != null && handler1.isLevelUpTriggered()) ||
                            (handler2 != null && handler2.isLevelUpTriggered());
         if (levelUp) {
             if (handler1 != null) handler1.clearLevelUp();
             if (handler2 != null) handler2.clearLevelUp();
-
-            if (player1 == null) return;
-            PlayerTag tag = player1.getComponent(PlayerTag.class);
-            if (tag == null) return;
-
-            switch (tag.getCurrentStage()) {
-                case TODDLER: advanceToStage2(sfxBubble); break;
-                case TEEN:    advanceToStage3(sfxBubble); break;
-                case ADULT:   triggerVictory(sfxBubble);  break;
-            }
+            advanceToNextStage();
         }
     }
 
-    private void checkHandlerSounds(FoodCollectHandler handler,
-                                    Sound sfxBite, Sound sfxSlurp, Sound sfxBubble) {
-        if (handler == null) return;
-        if (handler.wasLastCollectHealthy()) {
-            sfxBite.play(0.5f);
-            handler.clearLastCollect();
-        } else if (handler.wasLastCollectMedicine()) {
-            sfxBubble.play(0.5f);
-            renderer.triggerGreenFlash();
-            handler.clearLastCollect();
-        } else if (handler.wasLastCollectOlder()) {
-            sfxSlurp.play(0.7f);
-            renderer.triggerPurpleFlash();
-            handler.clearLastCollect();
-        } else if (handler.wasLastCollectUnhealthy()) {
-            sfxSlurp.play(0.5f);
-            renderer.triggerRedFlash();
-            handler.clearLastCollect();
+    private void checkHandlerEffects(FoodCollectHandler handler) {
+        if (handler == null || !handler.hasCollected()) return;
+
+        switch (handler.getLastFlashType()) {
+            case NONE:
+                audioManager.playAudio(SFX_BITE);
+                break;
+            case RED:
+                audioManager.playAudio(SFX_SLURP);
+                renderer.triggerRedFlash();
+                break;
+            case GREEN:
+                audioManager.playAudio(SFX_BUBBLE);
+                renderer.triggerGreenFlash();
+                break;
+            case PURPLE:
+                audioManager.playAudio(SFX_SLURP);
+                renderer.triggerPurpleFlash();
+                break;
         }
+        handler.clearLastCollect();
     }
 
     private FoodCollectHandler getHandler(Entity player) {

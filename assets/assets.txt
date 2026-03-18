@@ -17,16 +17,19 @@ backgrounds/child_stage.png
 backgrounds/congratulations.png
 backgrounds/default_interface.png
 backgrounds/game_over.png
+backgrounds/menu 2.png
 backgrounds/menu.png
 backgrounds/teen_stage.png
 backgrounds/user_guide1.png
 backgrounds/user_guide2.png
 backgrounds/user_guide3.png
 blackbox.png
+characters/adult 2.png
 characters/adult_girl_eating.png
 characters/adult_girl_sad.png
 characters/adult_guy_eating.png
 characters/adult_guy_sad.png
+characters/child 2.png
 characters/default_girl_adult.png
 characters/default_girl_child.png
 characters/default_girl_teen.png
@@ -35,6 +38,7 @@ characters/default_guy_child.png
 characters/default_guy_teen.png
 characters/heart types.png
 characters/heart ver2.png
+characters/teen 2.png
 characters/teen_girl_eating.png
 characters/teen_girl_sad.png
 characters/teen_guy_eating.png

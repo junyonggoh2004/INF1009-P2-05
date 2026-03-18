@@ -20,13 +20,10 @@ import io.github.some_example_name.entity.Sprite;
 import io.github.some_example_name.movement.Motion;
 import io.github.some_example_name.movement.MovementManager;
 import io.github.some_example_name.movement.Transform;
-import io.github.some_example_name.scene.MovingScene;
 import io.github.some_example_name.scene.Scene;
 import io.github.some_example_name.scene.SceneManager;
-import io.github.some_example_name.scene.StaticScene;
 import io.github.some_example_name.inputoutput.output.AudioManager;
 import io.github.some_example_name.inputoutput.output.GameAudio;
-import io.github.some_example_name.inputoutput.output.MusicTrack;
 
 /**
  * Engine prototype demonstrating the abstract Entity/Component system.
@@ -104,18 +101,14 @@ public class PrototypeEngine extends ApplicationAdapter {
         GameAudio track1 = am.getAudio("bgm_1");
         if (track1 != null) {
             track1.setVolume(0.2f);
-            if (track1 instanceof MusicTrack) {
-                ((MusicTrack) track1).setLooping(true);
-            }
+            track1.setLooping(true);
         }
 
         // Setup Scene 2 Music (Volume and Looping)
         GameAudio track2 = am.getAudio("bgm_2");
         if (track2 != null) {
             track2.setVolume(0.2f);
-            if (track2 instanceof MusicTrack) {
-                ((MusicTrack) track2).setLooping(true);
-            }
+            track2.setLooping(true);
         }
 
         em = engine.getEntityManager();

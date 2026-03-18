@@ -34,8 +34,12 @@ public class MusicTrack extends GameAudio {
         music.setVolume(volume); // Music CAN change volume while playing
     }
 
-    // --- SPECIAL FEATURE ---
-    // This is unique to MusicTrack. The parent GameAudio doesn't have this.
+    @Override
+    public boolean isMusic() {
+        return true;
+    }
+
+    @Override
     public void setLooping(boolean isLooping) {
         music.setLooping(isLooping);
     }

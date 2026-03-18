@@ -132,12 +132,19 @@ public class CollisionManager {
                         resolver.resolve(a, aCol, aTr, b, bCol, bTr);
                     }
 
-                    // Notify handlers on both entities
+                    // Fire Enter (first frame) or Stay (subsequent frames)
                     CollisionHandler ha = a.getComponent(CollisionHandler.class);
-                    if (ha != null) ha.onEnter(a, b);
-
                     CollisionHandler hb = b.getComponent(CollisionHandler.class);
-                    if (hb != null) hb.onEnter(b, a);
+
+                    if (!previousPairs.contains(key)) {
+                        // First frame of contact — Enter
+                        if (ha != null) ha.onEnter(a, b);
+                        if (hb != null) hb.onEnter(b, a);
+                    } else {
+                        // Ongoing contact — Stay
+                        if (ha != null) ha.onStay(a, b);
+                        if (hb != null) hb.onStay(b, a);
+                    }
                 }
             }
         }

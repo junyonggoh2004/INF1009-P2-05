@@ -57,16 +57,4 @@ public class CollectHandler implements CollisionHandler {
     }
 
 
-	@Override
-	public void onStay(Entity self, Entity other) {
-		//not needed for this handler
-		
-	}
-
-	@Override
-	public void onExit(Entity self, Entity other) {
-		//not needed for this handler
-
-		
-	}
 }

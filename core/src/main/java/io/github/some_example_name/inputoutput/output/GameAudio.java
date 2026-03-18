@@ -23,8 +23,15 @@ public abstract class GameAudio implements Disposable {
     public abstract void stop();
     public abstract void setVolume(float volume);
 
-    // This is a concrete method. We write it once here, and everyone shares it.
     public String getId() {
         return id;
     }
+
+    /** Returns true if this audio is a continuous music track (vs a one-shot sound). */
+    public boolean isMusic() {
+        return false;
+    }
+
+    /** Sets whether this audio should loop. Default no-op for sounds. */
+    public void setLooping(boolean looping) { }
 }

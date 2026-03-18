@@ -1,6 +1,7 @@
 package io.github.some_example_name.core;
 
 import io.github.some_example_name.collision.CollisionManager;
+import io.github.some_example_name.collision.NoResolver;
 import io.github.some_example_name.collision.RectCollisionDetector;
 import io.github.some_example_name.entity.EntityManager;
 import io.github.some_example_name.movement.MovementManager;
@@ -32,9 +33,9 @@ public class EngineCore {
         movementManager = new MovementManager();
         movementManager.init();
 
-        // Collision: pass detector, resolver is null (game sets it later)
+        // Collision: uses RectCollisionDetector and NoResolver by default
         collisionManager = new CollisionManager();
-        collisionManager.init(movementManager, new RectCollisionDetector(), null, COLLISION_LAYERS);
+        collisionManager.init(movementManager, new RectCollisionDetector(), new NoResolver(), COLLISION_LAYERS);
     }
 
     /**

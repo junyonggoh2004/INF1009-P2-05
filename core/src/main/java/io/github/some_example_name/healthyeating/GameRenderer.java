@@ -19,15 +19,11 @@ import io.github.some_example_name.entity.EntityManager;
 import io.github.some_example_name.entity.Sprite;
 import io.github.some_example_name.movement.MovementManager;
 import io.github.some_example_name.movement.Transform;
-import io.github.some_example_name.factory.PlayerEntityFactory;
-import io.github.some_example_name.scene.EndScene;
-import io.github.some_example_name.scene.FoodStageScene;
-import io.github.some_example_name.scene.MenuScene;
 import io.github.some_example_name.scene.Scene;
 
 /**
- * Handles all rendering: backgrounds, entities, HUD, menus, transitions,
- * red flash effect, and viewport management.
+ * Coordinates all rendering: delegates to PlayerTextureManager and HUDRenderer
+ * for player textures and HUD drawing respectively.
  */
 public class GameRenderer {
 
@@ -45,14 +41,12 @@ public class GameRenderer {
     private final OrthographicCamera camera;
     private final FitViewport viewport;
 
-    // Texture cache
-    private final Map<String, Texture> textureCache;
+    // Delegates
+    private final PlayerTextureManager playerTextures;
+    private final HUDRenderer hudRenderer;
 
-    // Player textures: [stage][expression] — guy (P1) and girl (P2)
-    // Stage: 0=toddler, 1=teen, 2=adult
-    // Expression: 0=default, 1=eating, 2=sad
-    private final Texture[][] guyTextures;
-    private final Texture[][] girlTextures;
+    // Texture cache for food sprites
+    private final Map<String, Texture> textureCache;
 
     // Background textures
     private final Texture menuBg;
@@ -92,52 +86,14 @@ public class GameRenderer {
         fontLarge.setColor(Color.WHITE);
         fontLarge.getData().setScale(2f);
 
-        // Camera + viewport
         camera = new OrthographicCamera();
         camera.position.set(WORLD_W / 2f, WORLD_H / 2f, 0);
         camera.update();
         viewport = new FitViewport(WORLD_W, WORLD_H, camera);
 
-        // Texture cache
         textureCache = new HashMap<>();
-
-        // Player textures — guy[stage][expr], girl[stage][expr]
-        // Player textures: [stage][expression] — guy (P1) and girl (P2)
-        // Expression: 0=default, 1=eating, 2=sad
-        guyTextures = new Texture[][] {
-            { // Toddler
-                new Texture(Gdx.files.internal("characters/default_guy_child.png")),
-                new Texture(Gdx.files.internal("characters/toddler_guy_eating.png")),
-                new Texture(Gdx.files.internal("characters/toddler_guy_sad.png")),
-            },
-            { // Teen
-                new Texture(Gdx.files.internal("characters/default_guy_teen.png")),
-                new Texture(Gdx.files.internal("characters/teen_guy_eating.png")),
-                new Texture(Gdx.files.internal("characters/teen_guy_sad.png")),
-            },
-            { // Adult
-                new Texture(Gdx.files.internal("characters/default_guy_adult.png")),
-                new Texture(Gdx.files.internal("characters/adult_guy_eating.png")),
-                new Texture(Gdx.files.internal("characters/adult_guy_sad.png")),
-            },
-        };
-        girlTextures = new Texture[][] {
-            { // Toddler
-                new Texture(Gdx.files.internal("characters/default_girl_child.png")),
-                new Texture(Gdx.files.internal("characters/toddler_girl_eating.png")),
-                new Texture(Gdx.files.internal("characters/toddler_girl_sad.png")),
-            },
-            { // Teen
-                new Texture(Gdx.files.internal("characters/default_girl_teen.png")),
-                new Texture(Gdx.files.internal("characters/teen_girl_eating.png")),
-                new Texture(Gdx.files.internal("characters/teen_girl_sad.png")),
-            },
-            { // Adult
-                new Texture(Gdx.files.internal("characters/default_girl_adult.png")),
-                new Texture(Gdx.files.internal("characters/adult_girl_eating.png")),
-                new Texture(Gdx.files.internal("characters/adult_girl_sad.png")),
-            },
-        };
+        playerTextures = new PlayerTextureManager();
+        hudRenderer = new HUDRenderer();
 
         // Background textures
         menuBg = new Texture(Gdx.files.internal("backgrounds/menu.png"));
@@ -153,7 +109,6 @@ public class GameRenderer {
         guideTexture3 = new Texture(Gdx.files.internal("backgrounds/user_guide3.png"));
     }
 
-    /** Must be called when window is resized. */
     public void resize(int width, int height) {
         viewport.update(width, height);
     }
@@ -164,35 +119,15 @@ public class GameRenderer {
 
     // ─── Screen Flash Effects ───
 
-    /** Red flash — regular unhealthy food / cigarette (-1 or -3 HP). */
-    public void triggerRedFlash() {
-        redFlashAlpha = FLASH_MAX_ALPHA;
-    }
-
-    /** Green flash — medicine collected (+1 HP heal). */
-    public void triggerGreenFlash() {
-        greenFlashAlpha = FLASH_MAX_ALPHA;
-    }
-
-    /** Purple flash — older unhealthy items like alcohol/vape (-2 HP). */
-    public void triggerPurpleFlash() {
-        purpleFlashAlpha = FLASH_MAX_ALPHA;
-    }
+    public void triggerRedFlash()    { redFlashAlpha = FLASH_MAX_ALPHA; }
+    public void triggerGreenFlash()  { greenFlashAlpha = FLASH_MAX_ALPHA; }
+    public void triggerPurpleFlash() { purpleFlashAlpha = FLASH_MAX_ALPHA; }
 
     public void updateFlash(float dt) {
         float decay = (FLASH_MAX_ALPHA / FLASH_DURATION) * dt;
-        if (redFlashAlpha > 0) {
-            redFlashAlpha -= decay;
-            if (redFlashAlpha < 0) redFlashAlpha = 0;
-        }
-        if (greenFlashAlpha > 0) {
-            greenFlashAlpha -= decay;
-            if (greenFlashAlpha < 0) greenFlashAlpha = 0;
-        }
-        if (purpleFlashAlpha > 0) {
-            purpleFlashAlpha -= decay;
-            if (purpleFlashAlpha < 0) purpleFlashAlpha = 0;
-        }
+        if (redFlashAlpha > 0)    redFlashAlpha = Math.max(0, redFlashAlpha - decay);
+        if (greenFlashAlpha > 0)  greenFlashAlpha = Math.max(0, greenFlashAlpha - decay);
+        if (purpleFlashAlpha > 0) purpleFlashAlpha = Math.max(0, purpleFlashAlpha - decay);
     }
 
     // ─── Texture Helper ───
@@ -222,7 +157,6 @@ public class GameRenderer {
         } else if (current == endScene) {
             bg = endBg;
         } else {
-            // Check if it's a stage scene — match by identity
             for (Map.Entry<PlayerTag.Stage, FoodStageScene> entry : stageScenes.entrySet()) {
                 if (current == entry.getValue()) {
                     bg = stageBgs.get(entry.getKey());
@@ -346,7 +280,7 @@ public class GameRenderer {
         Gdx.gl.glEnable(GL20.GL_BLEND);
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
 
-        // Draw entities with textures
+        // Draw entities
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
 
@@ -358,12 +292,9 @@ public class GameRenderer {
             if (t == null) continue;
 
             PlayerTag tag = e.getComponent(PlayerTag.class);
-            Texture tex = null;
-            if (tag != null) {
-                tex = getPlayerTexture(tag);
-            } else {
-                tex = getTexture(sprite.getTextureName());
-            }
+            Texture tex = (tag != null)
+                    ? playerTextures.getTexture(tag)
+                    : getTexture(sprite.getTextureName());
 
             if (tex != null) {
                 batch.draw(tex, t.getX(), t.getY(), sprite.getWidth(), sprite.getHeight());
@@ -372,113 +303,35 @@ public class GameRenderer {
 
         batch.end();
 
-        // HUD (uses player1's shared components)
-        drawHUD(player1);
+        // HUD
+        hudRenderer.draw(player1, shapeRenderer, batch, font, camera.combined, WORLD_H);
 
         // Screen flash overlays
-        if (redFlashAlpha > 0 || greenFlashAlpha > 0 || purpleFlashAlpha > 0) {
-            Gdx.gl.glEnable(GL20.GL_BLEND);
-            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
-            shapeRenderer.setProjectionMatrix(camera.combined);
-            shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
-            if (redFlashAlpha > 0) {
-                shapeRenderer.setColor(1f, 0f, 0f, redFlashAlpha);
-                shapeRenderer.rect(0, 0, WORLD_W, WORLD_H);
-            }
-            if (greenFlashAlpha > 0) {
-                shapeRenderer.setColor(0f, 1f, 0.3f, greenFlashAlpha);
-                shapeRenderer.rect(0, 0, WORLD_W, WORLD_H);
-            }
-            if (purpleFlashAlpha > 0) {
-                shapeRenderer.setColor(0.6f, 0f, 0.8f, purpleFlashAlpha);
-                shapeRenderer.rect(0, 0, WORLD_W, WORLD_H);
-            }
-            shapeRenderer.end();
-        }
+        drawFlashOverlays();
     }
 
-    // ─── Player Texture Selection ───
+    private void drawFlashOverlays() {
+        if (redFlashAlpha <= 0 && greenFlashAlpha <= 0 && purpleFlashAlpha <= 0) return;
 
-    private Texture getPlayerTexture(PlayerTag tag) {
-        int stageIdx;
-        switch (tag.getCurrentStage()) {
-            case TODDLER: stageIdx = 0; break;
-            case TEEN:    stageIdx = 1; break;
-            case ADULT:   stageIdx = 2; break;
-            default:      stageIdx = 0; break;
-        }
-
-        int exprIdx;
-        switch (tag.getExpression()) {
-            case EATING: exprIdx = 1; break;
-            case SAD:    exprIdx = 2; break;
-            default:     exprIdx = 0; break;
-        }
-
-        // P1 = guy, P2 = girl
-        if (tag.getPlayerNumber() == 2) {
-            return girlTextures[stageIdx][exprIdx];
-        } else {
-            return guyTextures[stageIdx][exprIdx];
-        }
-    }
-
-    // ─── HUD ───
-
-    private void drawHUD(Entity player) {
-        if (player == null) return;
-
-        ScoreTracker tracker = player.getComponent(ScoreTracker.class);
-        HealthBar health = player.getComponent(HealthBar.class);
-        PlayerTag tag = player.getComponent(PlayerTag.class);
-        if (tracker == null || health == null || tag == null) return;
-
-        float barX = 10f;
-        float barY = WORLD_H - 25f;
-        float barW = 200f;
-        float barH = 18f;
-        float progress = tracker.getProgress();
-
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
         shapeRenderer.setProjectionMatrix(camera.combined);
         shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
 
-        // Progress bar background
-        shapeRenderer.setColor(0.3f, 0.3f, 0.3f, 1f);
-        shapeRenderer.rect(barX, barY, barW, barH);
-
-        // Progress bar fill
-        shapeRenderer.setColor(0.2f, 0.8f, 0.3f, 1f);
-        shapeRenderer.rect(barX, barY, barW * progress, barH);
-
-        // Hearts
-        float heartX = barX + barW + 20f;
-        float heartSize = 18f;
-        for (int i = 0; i < health.getMaxHearts(); i++) {
-            if (i < health.getHearts()) {
-                shapeRenderer.setColor(1f, 0.2f, 0.2f, 1f);
-            } else {
-                shapeRenderer.setColor(0.4f, 0.4f, 0.4f, 1f);
-            }
-            shapeRenderer.rect(heartX + i * (heartSize + 5), barY, heartSize, heartSize);
+        if (redFlashAlpha > 0) {
+            shapeRenderer.setColor(1f, 0f, 0f, redFlashAlpha);
+            shapeRenderer.rect(0, 0, WORLD_W, WORLD_H);
+        }
+        if (greenFlashAlpha > 0) {
+            shapeRenderer.setColor(0f, 1f, 0.3f, greenFlashAlpha);
+            shapeRenderer.rect(0, 0, WORLD_W, WORLD_H);
+        }
+        if (purpleFlashAlpha > 0) {
+            shapeRenderer.setColor(0.6f, 0f, 0.8f, purpleFlashAlpha);
+            shapeRenderer.rect(0, 0, WORLD_W, WORLD_H);
         }
 
         shapeRenderer.end();
-
-        batch.setProjectionMatrix(camera.combined);
-        batch.begin();
-
-        String stageName;
-        switch (tag.getCurrentStage()) {
-            case TODDLER: stageName = "Toddler"; break;
-            case TEEN:    stageName = "Teen";     break;
-            case ADULT:   stageName = "Adult";    break;
-            default:      stageName = "Unknown";  break;
-        }
-
-        font.setColor(Color.WHITE);
-        font.draw(batch, stageName + "  |  Score: " + tracker.getScore() + " / " + tracker.getThreshold(),
-                barX, barY - 5);
-        batch.end();
     }
 
     // ─── Dispose ───
@@ -496,10 +349,7 @@ public class GameRenderer {
             textureCache.clear();
         }
 
-        for (Texture[] row : guyTextures)
-            for (Texture tex : row) if (tex != null) tex.dispose();
-        for (Texture[] row : girlTextures)
-            for (Texture tex : row) if (tex != null) tex.dispose();
+        playerTextures.dispose();
 
         if (menuBg != null) menuBg.dispose();
         if (endBg != null) endBg.dispose();
