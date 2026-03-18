@@ -7,6 +7,8 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.GlyphLayout;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Vector2;
+import com.badlogic.gdx.utils.viewport.Viewport;
 
 /**
  * A reusable UI button with hover and click feedback.
@@ -26,6 +28,7 @@ public class Button {
     private boolean hovered = false;
     private boolean visible = true;
     private final GlyphLayout layout = new GlyphLayout();
+    private final Vector2 tmpVec = new Vector2();
 
     /**
      * Creates a button with solid color background.
@@ -53,17 +56,17 @@ public class Button {
     }
 
     /**
-     * Updates hover state based on mouse position.
+     * Updates hover state based on mouse position using viewport unprojection.
      * Must be called every frame before draw().
      */
-    public void update() {
+    public void update(Viewport viewport) {
         if (!visible) {
             hovered = false;
             return;
         }
-        float mx = Gdx.input.getX();
-        float my = Gdx.graphics.getHeight() - Gdx.input.getY();
-        hovered = (mx >= x && mx <= x + width && my >= y && my <= y + height);
+        tmpVec.set(Gdx.input.getX(), Gdx.input.getY());
+        viewport.unproject(tmpVec);
+        hovered = (tmpVec.x >= x && tmpVec.x <= x + width && tmpVec.y >= y && tmpVec.y <= y + height);
     }
 
     /**

@@ -50,7 +50,7 @@ public class Stage3Scene extends Scene {
         switch (type) {
             case HEALTHY:   texturePath = FoodAssets.randomHealthy();   break;
             case UNHEALTHY: texturePath = FoodAssets.randomUnhealthy(); break;
-            case CIGARETTE: texturePath = FoodAssets.CIGARETTE;         break;
+            case CIGARETTE: texturePath = FoodAssets.randomOlderUnhealthy(); break;
             default:        texturePath = FoodAssets.randomUnhealthy(); break;
         }
 

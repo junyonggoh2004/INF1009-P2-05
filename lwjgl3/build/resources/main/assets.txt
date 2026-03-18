@@ -13,6 +13,7 @@ audio/Slurp.mp3
 audio/Walking.mp3
 backgrounds/adult_stage.png
 backgrounds/child_stage.jpg
+backgrounds/child_stage.png
 backgrounds/congratulations.png
 backgrounds/default_interface.png
 backgrounds/game_over.png
@@ -22,14 +23,28 @@ backgrounds/user_guide1.png
 backgrounds/user_guide2.png
 backgrounds/user_guide3.png
 blackbox.png
-characters/adult.png
-characters/child.png
+characters/adult_girl_eating.png
+characters/adult_girl_sad.png
+characters/adult_guy_eating.png
+characters/adult_guy_sad.png
+characters/default_girl_adult.png
+characters/default_girl_child.png
+characters/default_girl_teen.png
+characters/default_guy_adult.png
+characters/default_guy_child.png
+characters/default_guy_teen.png
 characters/heart types.png
 characters/heart ver2.png
-characters/teen.png
+characters/teen_girl_eating.png
+characters/teen_girl_sad.png
+characters/teen_guy_eating.png
+characters/teen_guy_sad.png
+characters/toddler_girl_eating.png
+characters/toddler_girl_sad.png
+characters/toddler_guy_eating.png
+characters/toddler_guy_sad.png
 healthy/carb/bread.png
 healthy/carb/rice.png
-healthy/dairy/cheese.png
 healthy/dairy/milk.png
 healthy/dairy/yoghurt.png
 healthy/dairy/yogurt.png

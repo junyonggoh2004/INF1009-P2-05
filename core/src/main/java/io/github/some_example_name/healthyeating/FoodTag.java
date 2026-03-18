@@ -9,9 +9,11 @@ import io.github.some_example_name.entity.Component;
 public class FoodTag implements Component {
 
     public enum FoodType {
-        HEALTHY,     // +1
-        UNHEALTHY,   // -1
-        CIGARETTE    // -3 (stage 3 only)
+        HEALTHY,     // +1 score
+        UNHEALTHY,   // -1 HP
+        CIGARETTE,   // -2 HP (stage 3 only)
+        MEDICINE,    // +2 HP heal (stage 3 only)
+        OLDER        // -2 HP (stage 3 only — alcohol, vape, etc.)
     }
 
     private final FoodType type;
@@ -29,7 +31,9 @@ public class FoodTag implements Component {
         switch (type) {
             case HEALTHY:    this.points = 1;  break;
             case UNHEALTHY:  this.points = -1; break;
-            case CIGARETTE:  this.points = -3; break;
+            case OLDER:      this.points = -2; break;
+            case CIGARETTE:  this.points = -2; break;
+            case MEDICINE:   this.points = 2;  break;
             default:         this.points = 0;  break;
         }
     }

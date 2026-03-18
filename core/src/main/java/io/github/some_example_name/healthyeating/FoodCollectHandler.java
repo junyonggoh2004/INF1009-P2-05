@@ -8,7 +8,10 @@ import io.github.some_example_name.entity.Sprite;
  * Collision handler attached to the player entity.
  * When the player collides with a food entity:
  * - Healthy food: adds score
- * - Unhealthy food / cigarette: loses hearts
+ * - Unhealthy food: loses 1 heart
+ * - Older unhealthy (alcohol/vape): loses 2 hearts
+ * - Cigarette: loses 3 hearts
+ * - Medicine: heals 1 heart
  *
  * Implements CollisionHandler (Observer pattern).
  */
@@ -18,6 +21,8 @@ public class FoodCollectHandler implements CollisionHandler {
     private boolean gameOverTriggered = false;
     private boolean lastCollectHealthy = false;
     private boolean lastCollectUnhealthy = false;
+    private boolean lastCollectMedicine = false;
+    private boolean lastCollectOlder = false;
 
     @Override
     public void onEnter(Entity self, Entity other) {
@@ -28,18 +33,32 @@ public class FoodCollectHandler implements CollisionHandler {
         HealthBar health = self.getComponent(HealthBar.class);
         if (tracker == null || health == null) return;
 
-        int points = food.getPoints();
+        clearLastCollect();
 
-        if (points > 0) {
-            // Healthy food — add to score
-            tracker.addScore(points);
-            lastCollectHealthy = true;
-            lastCollectUnhealthy = false;
-        } else {
-            // Unhealthy food or cigarette — lose hearts
-            health.loseHearts(Math.abs(points));
-            lastCollectHealthy = false;
-            lastCollectUnhealthy = true;
+        PlayerTag tag = self.getComponent(PlayerTag.class);
+
+        switch (food.getType()) {
+            case HEALTHY:
+                tracker.addScore(food.getPoints());
+                lastCollectHealthy = true;
+                if (tag != null) tag.setExpression(PlayerTag.Expression.EATING);
+                break;
+            case MEDICINE:
+                health.gainHearts(food.getPoints());
+                lastCollectMedicine = true;
+                if (tag != null) tag.setExpression(PlayerTag.Expression.EATING);
+                break;
+            case OLDER:
+                health.loseHearts(Math.abs(food.getPoints()));
+                lastCollectOlder = true;
+                if (tag != null) tag.setExpression(PlayerTag.Expression.SAD);
+                break;
+            case UNHEALTHY:
+            case CIGARETTE:
+                health.loseHearts(Math.abs(food.getPoints()));
+                lastCollectUnhealthy = true;
+                if (tag != null) tag.setExpression(PlayerTag.Expression.SAD);
+                break;
         }
 
         // Mark food as collected and hide it
@@ -66,12 +85,19 @@ public class FoodCollectHandler implements CollisionHandler {
 
     // ─── State checks ───
 
-    public boolean isLevelUpTriggered()     { return levelUpTriggered; }
-    public boolean isGameOverTriggered()    { return gameOverTriggered; }
-    public boolean wasLastCollectHealthy()  { return lastCollectHealthy; }
-    public boolean wasLastCollectUnhealthy(){ return lastCollectUnhealthy; }
+    public boolean isLevelUpTriggered()      { return levelUpTriggered; }
+    public boolean isGameOverTriggered()     { return gameOverTriggered; }
+    public boolean wasLastCollectHealthy()   { return lastCollectHealthy; }
+    public boolean wasLastCollectUnhealthy() { return lastCollectUnhealthy; }
+    public boolean wasLastCollectMedicine()  { return lastCollectMedicine; }
+    public boolean wasLastCollectOlder()     { return lastCollectOlder; }
 
     public void clearLevelUp()     { levelUpTriggered = false; }
     public void clearGameOver()    { gameOverTriggered = false; }
-    public void clearLastCollect() { lastCollectHealthy = false; lastCollectUnhealthy = false; }
+    public void clearLastCollect() {
+        lastCollectHealthy = false;
+        lastCollectUnhealthy = false;
+        lastCollectMedicine = false;
+        lastCollectOlder = false;
+    }
 }
