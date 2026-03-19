@@ -12,7 +12,6 @@ audio/LevelUp.wav
 audio/Slurp.mp3
 audio/Walking.mp3
 backgrounds/adult_stage.png
-backgrounds/child_stage.jpg
 backgrounds/child_stage.png
 backgrounds/congratulations.png
 backgrounds/default_interface.png
