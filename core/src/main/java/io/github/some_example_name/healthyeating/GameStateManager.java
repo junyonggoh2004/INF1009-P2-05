@@ -10,6 +10,7 @@ import io.github.some_example_name.healthyeating.factory.StageContentFactory;
 import io.github.some_example_name.healthyeating.factory.StageFactoryRegistry;
 import io.github.some_example_name.healthyeating.factory.StageProfile;
 import io.github.some_example_name.inputoutput.output.AudioManager;
+import io.github.some_example_name.inputoutput.output.ConsoleLogger;
 import io.github.some_example_name.movement.MovementManager;
 import io.github.some_example_name.movement.Transform;
 import io.github.some_example_name.scene.SceneManager;
@@ -25,9 +26,12 @@ import java.util.Map;
 public class GameStateManager {
 
     // Audio IDs (registered with engine AudioManager)
-    public static final String SFX_BITE   = "bite";
-    public static final String SFX_SLURP  = "slurp";
-    public static final String SFX_BUBBLE = "bubble";
+    public static final String SFX_BITE     = "bite";
+    public static final String SFX_SLURP    = "slurp";
+    public static final String SFX_BUBBLE   = "bubble";
+    public static final String SFX_LEVEL_UP = "level_up";
+    public static final String SFX_GAME_OVER = "game_over";
+    public static final String SFX_GAME_COMPLETE = "game_complete";
 
     private static final float TRANSITION_DURATION = 3.0f;
 
@@ -46,6 +50,7 @@ public class GameStateManager {
     private final EntityManager em;
     private final MovementManager mm;
     private final AudioManager audioManager;
+    private final ConsoleLogger logger;
 
     // Players
     private Entity player1;
@@ -63,7 +68,7 @@ public class GameStateManager {
 
     public GameStateManager(SceneManager sm, EntityManager em, MovementManager mm,
                             PlayerEntityFactory playerFactory, StageFactoryRegistry stageRegistry,
-                            GameRenderer renderer, AudioManager audioManager,
+                            GameRenderer renderer, AudioManager audioManager, ConsoleLogger logger,
                             MenuScene menuScene, EndScene endScene,
                             Map<Stage, FoodStageScene> stageScenes) {
         this.sm = sm;
@@ -73,6 +78,7 @@ public class GameStateManager {
         this.stageRegistry = stageRegistry;
         this.renderer = renderer;
         this.audioManager = audioManager;
+        this.logger = logger;
         this.menuScene = menuScene;
         this.endScene = endScene;
         this.stageScenes = stageScenes;
@@ -124,7 +130,16 @@ public class GameStateManager {
         transitionTimer = TRANSITION_DURATION;
 
         sm.setScene(stageScenes.get(nextStage));
-        audioManager.playAudio(SFX_BUBBLE);
+        audioManager.playAudio(SFX_LEVEL_UP);
+        if (logger != null) {
+            if (nextStage == Stage.TEEN) {
+                logger.log("[HealthyEating] Stage advanced: TODDLER -> TEEN");
+            } else if (nextStage == Stage.ADULT) {
+                logger.log("[HealthyEating] Stage advanced: TEEN -> ADULT");
+            } else {
+                logger.log("[HealthyEating] Stage advanced to: " + nextStage);
+            }
+        }
     }
 
     private void resetPlayerPositions() {
@@ -168,12 +183,15 @@ public class GameStateManager {
     public void triggerVictory() {
         endScene.setVictory(true);
         sm.setScene(endScene);
-        audioManager.playAudio(SFX_BUBBLE);
+        audioManager.playAudio(SFX_GAME_COMPLETE);
+        if (logger != null) logger.log("[HealthyEating] Game result: WIN");
     }
 
     public void triggerGameOver() {
         endScene.setVictory(false);
         sm.setScene(endScene);
+        audioManager.playAudio(SFX_GAME_OVER);
+        if (logger != null) logger.log("[HealthyEating] Game result: LOSE");
     }
 
     public void returnToMenu() {

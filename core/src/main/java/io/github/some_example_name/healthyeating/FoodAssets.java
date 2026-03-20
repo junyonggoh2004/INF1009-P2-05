@@ -86,6 +86,9 @@ public class FoodAssets {
     public static final String SFX_BITE      = "audio/Bite.mp3";
     public static final String SFX_SLURP     = "audio/Slurp.mp3";
     public static final String SFX_BUBBLE    = "audio/Bubble-Click.ogg";
+    public static final String SFX_LEVEL_UP  = "audio/LevelUp.wav";
+    public static final String SFX_GAME_OVER = "audio/GameOver.wav";
+    public static final String SFX_GAME_COMPLETE = "audio/GameComplete.wav";
 
     /** Returns a random healthy food image path */
     public static String randomHealthy() {

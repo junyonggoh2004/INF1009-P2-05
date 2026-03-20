@@ -51,7 +51,8 @@ public class GameRenderer {
     // Background textures
     private final Texture menuBg;
     private final Map<PlayerTag.Stage, Texture> stageBgs;
-    private final Texture endBg;
+    private final Texture victoryBg;
+    private final Texture defeatBg;
 
     // Guide textures
     private final Texture guideTexture1;
@@ -97,7 +98,8 @@ public class GameRenderer {
 
         // Background textures
         menuBg = new Texture(Gdx.files.internal("backgrounds/menu.png"));
-        endBg  = new Texture(Gdx.files.internal("backgrounds/game_over.png"));
+        victoryBg = new Texture(Gdx.files.internal("backgrounds/congratulations.png"));
+        defeatBg = new Texture(Gdx.files.internal("backgrounds/game_over.png"));
         stageBgs = new HashMap<>();
         stageBgs.put(PlayerTag.Stage.TODDLER, new Texture(Gdx.files.internal("backgrounds/child_stage.png")));
         stageBgs.put(PlayerTag.Stage.TEEN, new Texture(Gdx.files.internal("backgrounds/teen_stage.png")));
@@ -155,7 +157,7 @@ public class GameRenderer {
         if (current == menuScene) {
             bg = menuBg;
         } else if (current == endScene) {
-            bg = endBg;
+            bg = endScene.isVictory() ? victoryBg : defeatBg;
         } else {
             for (Map.Entry<PlayerTag.Stage, FoodStageScene> entry : stageScenes.entrySet()) {
                 if (current == entry.getValue()) {
@@ -176,7 +178,7 @@ public class GameRenderer {
     // ─── Menu Screen ───
 
     public void drawMenuScreen(Button singlePlayerBtn, Button multiPlayerBtn,
-                               Button guideBtn, Button exitBtn) {
+                               Button guideBtn, Button settingsBtn, Button exitBtn) {
         drawBackground(menuScene);
 
         Gdx.gl.glEnable(GL20.GL_BLEND);
@@ -187,6 +189,7 @@ public class GameRenderer {
         singlePlayerBtn.drawBackground(shapeRenderer);
         multiPlayerBtn.drawBackground(shapeRenderer);
         guideBtn.drawBackground(shapeRenderer);
+        settingsBtn.drawBackground(shapeRenderer);
         exitBtn.drawBackground(shapeRenderer);
         shapeRenderer.end();
 
@@ -195,6 +198,7 @@ public class GameRenderer {
         singlePlayerBtn.drawWithBatch(batch, fontLarge);
         multiPlayerBtn.drawWithBatch(batch, fontLarge);
         guideBtn.drawWithBatch(batch, fontLarge);
+        settingsBtn.drawWithBatch(batch, fontLarge);
         exitBtn.drawWithBatch(batch, fontLarge);
         batch.end();
     }
@@ -334,6 +338,109 @@ public class GameRenderer {
         shapeRenderer.end();
     }
 
+    // ─── Settings Screen ───
+
+    public void drawSettingsScreen(Button backBtn,
+                                   float bgmVolume, float sfxVolume,
+                                   float sliderX, float sliderW,
+                                   float bgmSliderY, float sfxSliderY) {
+        drawBackground(menuScene);
+        drawSettingsPanel(backBtn, bgmVolume, sfxVolume, sliderX, sliderW, bgmSliderY, sfxSliderY, "Settings");
+    }
+
+    private void drawSettingsPanel(Button backBtn,
+                                   float bgmVolume, float sfxVolume,
+                                   float sliderX, float sliderW,
+                                   float bgmSliderY, float sfxSliderY,
+                                   String title) {
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+
+        shapeRenderer.setProjectionMatrix(camera.combined);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+
+        shapeRenderer.setColor(0f, 0f, 0f, 0.35f);
+        shapeRenderer.rect(70f, 85f, WORLD_W - 140f, WORLD_H - 170f);
+
+        float trackH = 10f;
+        float knobW = 16f;
+        float knobH = 28f;
+
+        shapeRenderer.setColor(0.35f, 0.35f, 0.35f, 1f);
+        shapeRenderer.rect(sliderX, bgmSliderY, sliderW, trackH);
+        shapeRenderer.rect(sliderX, sfxSliderY, sliderW, trackH);
+
+        shapeRenderer.setColor(0.3f, 0.85f, 0.4f, 1f);
+        shapeRenderer.rect(sliderX, bgmSliderY, sliderW * bgmVolume, trackH);
+        shapeRenderer.rect(sliderX, sfxSliderY, sliderW * sfxVolume, trackH);
+
+        shapeRenderer.setColor(1f, 1f, 1f, 1f);
+        shapeRenderer.rect(sliderX + sliderW * bgmVolume - knobW / 2f, bgmSliderY - 9f, knobW, knobH);
+        shapeRenderer.rect(sliderX + sliderW * sfxVolume - knobW / 2f, sfxSliderY - 9f, knobW, knobH);
+
+        backBtn.drawBackground(shapeRenderer);
+        shapeRenderer.end();
+
+        batch.setProjectionMatrix(camera.combined);
+        batch.begin();
+        fontLarge.setColor(Color.WHITE);
+        fontLarge.draw(batch, title, WORLD_W / 2f - 65f, WORLD_H - 120f);
+
+        font.draw(batch, "Background Music", sliderX, bgmSliderY + 42f);
+        font.draw(batch, "Sound Effects", sliderX, sfxSliderY + 42f);
+        font.draw(batch, (int) (bgmVolume * 100f) + "%", sliderX + sliderW + 12f, bgmSliderY + 12f);
+        font.draw(batch, (int) (sfxVolume * 100f) + "%", sliderX + sliderW + 12f, sfxSliderY + 12f);
+
+        backBtn.drawWithBatch(batch, fontLarge);
+        batch.end();
+    }
+
+    // ─── Pause Menu Overlay ───
+
+    public void drawPauseMenuOverlay(Button resumeBtn, Button settingsBtn, Button quitBtn) {
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+
+        shapeRenderer.setProjectionMatrix(camera.combined);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.setColor(0f, 0f, 0f, 0.55f);
+        shapeRenderer.rect(0, 0, WORLD_W, WORLD_H);
+        shapeRenderer.setColor(0f, 0f, 0f, 0.35f);
+        shapeRenderer.rect(170f, 110f, 300f, 260f);
+
+        resumeBtn.drawBackground(shapeRenderer);
+        settingsBtn.drawBackground(shapeRenderer);
+        quitBtn.drawBackground(shapeRenderer);
+        shapeRenderer.end();
+
+        batch.setProjectionMatrix(camera.combined);
+        batch.begin();
+        fontLarge.setColor(Color.WHITE);
+        fontLarge.draw(batch, "Paused", WORLD_W / 2f - 55f, WORLD_H - 145f);
+        resumeBtn.drawWithBatch(batch, fontLarge);
+        settingsBtn.drawWithBatch(batch, fontLarge);
+        quitBtn.drawWithBatch(batch, fontLarge);
+        batch.end();
+    }
+
+    // ─── Gameplay Settings Overlay ───
+
+    public void drawSettingsOverlayOnGameplay(Button backBtn,
+                                              float bgmVolume, float sfxVolume,
+                                              float sliderX, float sliderW,
+                                              float bgmSliderY, float sfxSliderY) {
+        Gdx.gl.glEnable(GL20.GL_BLEND);
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA);
+
+        shapeRenderer.setProjectionMatrix(camera.combined);
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        shapeRenderer.setColor(0f, 0f, 0f, 0.55f);
+        shapeRenderer.rect(0, 0, WORLD_W, WORLD_H);
+        shapeRenderer.end();
+
+        drawSettingsPanel(backBtn, bgmVolume, sfxVolume, sliderX, sliderW, bgmSliderY, sfxSliderY, "Settings");
+    }
+
     // ─── Dispose ───
 
     public void dispose() {
@@ -352,7 +459,8 @@ public class GameRenderer {
         playerTextures.dispose();
 
         if (menuBg != null) menuBg.dispose();
-        if (endBg != null) endBg.dispose();
+        if (victoryBg != null) victoryBg.dispose();
+        if (defeatBg != null) defeatBg.dispose();
         for (Texture tex : stageBgs.values()) if (tex != null) tex.dispose();
 
         if (guideTexture1 != null) guideTexture1.dispose();
