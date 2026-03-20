@@ -50,6 +50,7 @@ public class GameRenderer {
 
     // Background textures
     private final Texture menuBg;
+    private final Texture settingsMenuBg;
     private final Map<PlayerTag.Stage, Texture> stageBgs;
     private final Texture victoryBg;
     private final Texture defeatBg;
@@ -98,6 +99,7 @@ public class GameRenderer {
 
         // Background textures
         menuBg = new Texture(Gdx.files.internal("backgrounds/menu.png"));
+        settingsMenuBg = new Texture(Gdx.files.internal("backgrounds/default_interface.png"));
         victoryBg = new Texture(Gdx.files.internal("backgrounds/congratulations.png"));
         defeatBg = new Texture(Gdx.files.internal("backgrounds/game_over.png"));
         stageBgs = new HashMap<>();
@@ -344,7 +346,14 @@ public class GameRenderer {
                                    float bgmVolume, float sfxVolume,
                                    float sliderX, float sliderW,
                                    float bgmSliderY, float sfxSliderY) {
-        drawBackground(menuScene);
+        Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
+        batch.setProjectionMatrix(camera.combined);
+        batch.begin();
+        batch.draw(settingsMenuBg, 0, 0, WORLD_W, WORLD_H);
+        batch.end();
+
         drawSettingsPanel(backBtn, bgmVolume, sfxVolume, sliderX, sliderW, bgmSliderY, sfxSliderY, "Settings");
     }
 
@@ -459,6 +468,7 @@ public class GameRenderer {
         playerTextures.dispose();
 
         if (menuBg != null) menuBg.dispose();
+        if (settingsMenuBg != null) settingsMenuBg.dispose();
         if (victoryBg != null) victoryBg.dispose();
         if (defeatBg != null) defeatBg.dispose();
         for (Texture tex : stageBgs.values()) if (tex != null) tex.dispose();
