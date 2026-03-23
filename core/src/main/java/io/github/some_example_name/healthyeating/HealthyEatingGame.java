@@ -211,7 +211,7 @@ public class HealthyEatingGame extends ApplicationAdapter {
 
         float endBtnW = 200f;
         float endBtnH = 50f;
-        float endBtnY = worldH * 0.25f;
+        float endBtnY = worldH * 0.12f;
 
         restartBtn = new Button(
                 worldW / 2f - endBtnW - 20f, endBtnY,

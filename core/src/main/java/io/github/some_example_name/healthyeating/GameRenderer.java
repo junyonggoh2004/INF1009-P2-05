@@ -8,6 +8,8 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
+import com.badlogic.gdx.math.Matrix4;
+import com.badlogic.gdx.utils.Align;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
 
@@ -40,6 +42,7 @@ public class GameRenderer {
     // Camera + Viewport
     private final OrthographicCamera camera;
     private final FitViewport viewport;
+    private final Matrix4 fullscreenProjection;
 
     // Delegates
     private final PlayerTextureManager playerTextures;
@@ -92,6 +95,7 @@ public class GameRenderer {
         camera.position.set(WORLD_W / 2f, WORLD_H / 2f, 0);
         camera.update();
         viewport = new FitViewport(WORLD_W, WORLD_H, camera);
+        fullscreenProjection = new Matrix4();
 
         textureCache = new HashMap<>();
         playerTextures = new PlayerTextureManager();
@@ -106,11 +110,25 @@ public class GameRenderer {
         stageBgs.put(PlayerTag.Stage.TODDLER, new Texture(Gdx.files.internal("backgrounds/child_stage.png")));
         stageBgs.put(PlayerTag.Stage.TEEN, new Texture(Gdx.files.internal("backgrounds/teen_stage.png")));
         stageBgs.put(PlayerTag.Stage.ADULT, new Texture(Gdx.files.internal("backgrounds/adult_stage.png")));
+        setLinearFilter(menuBg);
+        setLinearFilter(settingsMenuBg);
+        setLinearFilter(victoryBg);
+        setLinearFilter(defeatBg);
+        for (Texture tex : stageBgs.values()) setLinearFilter(tex);
 
         // Guide textures
         guideTexture1 = new Texture(Gdx.files.internal("backgrounds/user_guide1.png"));
         guideTexture2 = new Texture(Gdx.files.internal("backgrounds/user_guide2.png"));
         guideTexture3 = new Texture(Gdx.files.internal("backgrounds/user_guide3.png"));
+        setLinearFilter(guideTexture1);
+        setLinearFilter(guideTexture2);
+        setLinearFilter(guideTexture3);
+    }
+
+    private void setLinearFilter(Texture texture) {
+        if (texture != null) {
+            texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+        }
     }
 
     public void resize(int width, int height) {
@@ -149,25 +167,68 @@ public class GameRenderer {
 
     // ─── Background ───
 
+    private Texture resolveBackgroundTexture(Scene current) {
+        if (current == menuScene) return menuBg;
+        if (current == endScene) return endScene.isVictory() ? victoryBg : defeatBg;
+
+        for (Map.Entry<PlayerTag.Stage, FoodStageScene> entry : stageScenes.entrySet()) {
+            if (current == entry.getValue()) return stageBgs.get(entry.getKey());
+        }
+        return null;
+    }
+
+    /**
+     * Draws a blurred, fullscreen backdrop to fill letterbox bars.
+     * Main gameplay/menu rendering still uses the fixed virtual viewport.
+     */
+    private void drawFullscreenBlurBackdrop(Texture bg) {
+        if (bg == null) return;
+
+        int screenW = Gdx.graphics.getWidth();
+        int screenH = Gdx.graphics.getHeight();
+        if (screenW <= 0 || screenH <= 0) return;
+
+        Gdx.gl.glViewport(0, 0, screenW, screenH);
+
+        float scale = Math.max((float) screenW / bg.getWidth(), (float) screenH / bg.getHeight());
+        float drawW = bg.getWidth() * scale;
+        float drawH = bg.getHeight() * scale;
+        float drawX = (screenW - drawW) * 0.5f;
+        float drawY = (screenH - drawH) * 0.5f;
+
+        float blurScale = 1.08f;
+        float blurW = drawW * blurScale;
+        float blurH = drawH * blurScale;
+        float blurX = (screenW - blurW) * 0.5f;
+        float blurY = (screenH - blurH) * 0.5f;
+
+        fullscreenProjection.setToOrtho2D(0, 0, screenW, screenH);
+        batch.setProjectionMatrix(fullscreenProjection);
+
+        batch.begin();
+        batch.setColor(1f, 1f, 1f, 0.16f);
+        batch.draw(bg, blurX - 14f, blurY, blurW, blurH);
+        batch.draw(bg, blurX + 14f, blurY, blurW, blurH);
+        batch.draw(bg, blurX, blurY - 14f, blurW, blurH);
+        batch.draw(bg, blurX, blurY + 14f, blurW, blurH);
+        batch.draw(bg, blurX, blurY, blurW, blurH);
+
+        batch.setColor(1f, 1f, 1f, 0.45f);
+        batch.draw(bg, drawX, drawY, drawW, drawH);
+        batch.setColor(Color.WHITE);
+        batch.end();
+    }
+
     private void drawBackground(Scene current) {
         if (current != null) {
             current.render((r, g, b, a) -> Gdx.gl.glClearColor(r, g, b, a));
         }
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        Texture bg = null;
-        if (current == menuScene) {
-            bg = menuBg;
-        } else if (current == endScene) {
-            bg = endScene.isVictory() ? victoryBg : defeatBg;
-        } else {
-            for (Map.Entry<PlayerTag.Stage, FoodStageScene> entry : stageScenes.entrySet()) {
-                if (current == entry.getValue()) {
-                    bg = stageBgs.get(entry.getKey());
-                    break;
-                }
-            }
-        }
+        Texture bg = resolveBackgroundTexture(current);
+        drawFullscreenBlurBackdrop(bg);
+
+        viewport.apply();
 
         if (bg != null) {
             batch.setProjectionMatrix(camera.combined);
@@ -225,18 +286,21 @@ public class GameRenderer {
     public void drawEndScreen(EndScene endSceneRef, Button restartBtn, Button menuBtn) {
         drawBackground(endSceneRef);
 
+        float titleY = WORLD_H * 0.44f;
+        float messageY = WORLD_H * 0.36f;
+
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
         if (endSceneRef.isVictory()) {
             fontLarge.setColor(Color.GREEN);
-            fontLarge.draw(batch, "Congratulations!", WORLD_W / 2f - 150, WORLD_H / 2f + 80);
+            fontLarge.draw(batch, "Congratulations!", 0f, titleY, WORLD_W, Align.center, false);
             fontLarge.setColor(Color.WHITE);
-            font.draw(batch, "You grew up healthy and strong!", WORLD_W / 2f - 120, WORLD_H / 2f + 30);
+            font.draw(batch, "You grew up healthy and strong!", 0f, messageY, WORLD_W, Align.center, false);
         } else {
             fontLarge.setColor(Color.RED);
-            fontLarge.draw(batch, "Game Over!", WORLD_W / 2f - 100, WORLD_H / 2f + 80);
+            fontLarge.draw(batch, "Game Over!", 0f, titleY, WORLD_W, Align.center, false);
             fontLarge.setColor(Color.WHITE);
-            font.draw(batch, "Too much unhealthy food...", WORLD_W / 2f - 100, WORLD_H / 2f + 30);
+            font.draw(batch, "Too much unhealthy food...", 0f, messageY, WORLD_W, Align.center, false);
         }
         batch.end();
 
@@ -348,6 +412,9 @@ public class GameRenderer {
                                    float bgmSliderY, float sfxSliderY) {
         Gdx.gl.glClearColor(0f, 0f, 0f, 1f);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+
+        drawFullscreenBlurBackdrop(settingsMenuBg);
+        viewport.apply();
 
         batch.setProjectionMatrix(camera.combined);
         batch.begin();
